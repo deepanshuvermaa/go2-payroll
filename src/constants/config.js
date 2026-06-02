@@ -1,7 +1,7 @@
-// API Configuration - Using shared Go2-Desktop backend
+// API Configuration
 export const BACKEND_ENDPOINTS = [
-  'http://localhost:3001/api',
-  'https://quickbill-production.up.railway.app/api'
+  '/api',
+  'http://localhost:3001/api'
 ];
 
 export const API_BASE_URL = import.meta.env.VITE_API_URL || BACKEND_ENDPOINTS[0];

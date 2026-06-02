@@ -68,8 +68,19 @@ app.use('/api/documents', documentRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/integrations', integrationRoutes);
 
-// Error handling
-app.use(notFound);
+// Serve frontend static files in production
+import path from 'path';
+const frontendPath = path.join(__dirname, '../../frontend/dist');
+app.use(express.static(frontendPath));
+
+// Error handling for API routes
+app.use('/api/*', notFound);
+
+// All other routes serve frontend (SPA)
+app.get('*', (_req, res) => {
+  res.sendFile(path.join(frontendPath, 'index.html'));
+});
+
 app.use(errorHandler);
 
 // Start server
