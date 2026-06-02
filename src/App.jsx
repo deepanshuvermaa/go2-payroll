@@ -53,6 +53,12 @@ import UserManagement from './pages/users/UserManagement';
 import ESSPortal from './pages/ess/ESSPortal';
 import OnboardingScreen from './pages/onboarding/OnboardingScreen';
 import ApprovalInbox from './pages/approvals/ApprovalInbox';
+import RecruitmentPipeline from './pages/recruitment/RecruitmentPipeline';
+import TeamDashboard from './pages/team/TeamDashboard';
+import EmployeeEngagement from './pages/engagement/EmployeeEngagement';
+import LearningDevelopment from './pages/lnd/LearningDevelopment';
+import AIAssistant from './pages/ai/AIAssistant';
+import DocumentGeneration from './pages/documents/DocumentGeneration';
 import NotFound from './pages/NotFound';
 
 // Protected Route Component
@@ -185,6 +191,12 @@ function App() {
                   <Route path="/ess" element={<ESSPortal />} />
                   <Route path="/onboarding" element={<OnboardingScreen />} />
                   <Route path="/approvals" element={<ApprovalInbox />} />
+                  <Route path="/recruitment" element={<RecruitmentPipeline />} />
+                  <Route path="/team-dashboard" element={<TeamDashboard />} />
+                  <Route path="/engagement" element={<EmployeeEngagement />} />
+                  <Route path="/lnd" element={<LearningDevelopment />} />
+                  <Route path="/ai-assistant" element={<AIAssistant />} />
+                  <Route path="/document-generation" element={<DocumentGeneration />} />
                   {/* 404 catch-all */}
                   <Route path="*" element={<NotFound />} />
                 </Routes>

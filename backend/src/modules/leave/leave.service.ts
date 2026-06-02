@@ -1,5 +1,8 @@
 import prisma from '../../config/database';
 import { AppError } from '../../middleware/errorHandler';
+import { NotificationService, EmailService } from '../notifications/notification.service';
+const notifService = new NotificationService();
+const emailService = new EmailService();
 
 export class LeaveService {
   async apply(employeeId: string, data: { leaveTypeId: string; fromDate: string; toDate: string; reason: string; isHalfDay?: boolean; documentUrl?: string }) {
@@ -31,11 +34,37 @@ export class LeaveService {
       });
     }
 
-    return prisma.leaveApplication.update({ where: { id: applicationId }, data: { status: 'APPROVED', approverId, approvedAt: new Date() } });
+    const leave = await prisma.leaveApplication.update({ where: { id: applicationId }, data: { status: 'APPROVED', approverId, approvedAt: new Date() } });
+
+    // Notify employee of leave approval
+    try {
+      const emp = await prisma.employee.findUnique({ where: { id: leave.employeeId }, include: { user: true } });
+      if (emp?.user?.email) {
+        await emailService.send(emp.user.email, 'Leave Request Approved', `<p>Dear ${emp.firstName},</p><p>Your leave request from ${leave.fromDate.toLocaleDateString()} to ${leave.toDate.toLocaleDateString()} has been <strong>approved</strong>.</p><p>Regards,<br>HR Team</p>`);
+      }
+      if (emp?.userId) {
+        await notifService.send(emp.userId, 'IN_APP', 'Leave Approved ✓', `Your leave from ${leave.fromDate.toLocaleDateString()} to ${leave.toDate.toLocaleDateString()} has been approved.`);
+      }
+    } catch (notifErr) { console.error('Notification failed:', notifErr); }
+
+    return leave;
   }
 
   async reject(applicationId: string, approverId: string, reason: string) {
-    return prisma.leaveApplication.update({ where: { id: applicationId }, data: { status: 'REJECTED', approverId, approverRemarks: reason } });
+    const leave = await prisma.leaveApplication.update({ where: { id: applicationId }, data: { status: 'REJECTED', approverId, approverRemarks: reason } });
+
+    // Notify employee of rejection
+    try {
+      const emp = await prisma.employee.findUnique({ where: { id: leave.employeeId }, include: { user: true } });
+      if (emp?.user?.email) {
+        await emailService.send(emp.user.email, 'Leave Request Update', `<p>Dear ${emp.firstName},</p><p>Your leave request from ${leave.fromDate.toLocaleDateString()} to ${leave.toDate.toLocaleDateString()} has been <strong>rejected</strong>.</p><p>Reason: ${reason || 'Not specified'}</p><p>If you have questions, please contact HR.</p><p>Regards,<br>HR Team</p>`);
+      }
+      if (emp?.userId) {
+        await notifService.send(emp.userId, 'IN_APP', 'Leave Request Update', `Your leave request from ${leave.fromDate.toLocaleDateString()} to ${leave.toDate.toLocaleDateString()} was not approved. Reason: ${reason || 'Not specified'}`);
+      }
+    } catch (notifErr) { console.error('Reject notification failed:', notifErr); }
+
+    return leave;
   }
 
   async cancel(applicationId: string, employeeId: string) {

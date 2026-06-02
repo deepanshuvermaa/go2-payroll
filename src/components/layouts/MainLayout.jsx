@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, Calendar, DollarSign, FileText, Settings, LogOut, ClipboardList, Wallet, TrendingUp, Receipt, Gift, Target, Clock, Award, Timer, Coffee, AlertCircle, Banknote, CalendarCheck, Layout, Coins, FileEdit, Calculator, FileCheck, Zap, Bell, Shield, BarChart3, FileSpreadsheet, Building2, ChevronDown, ChevronRight, BookOpen, Eye, Search, Menu, X } from 'lucide-react';
+import { LayoutDashboard, Users, Calendar, DollarSign, FileText, Settings, LogOut, ClipboardList, Wallet, TrendingUp, Receipt, Gift, Target, Clock, Award, Timer, Coffee, AlertCircle, Banknote, CalendarCheck, Layout, Coins, FileEdit, Calculator, FileCheck, Zap, Bell, Shield, BarChart3, FileSpreadsheet, Building2, Briefcase, ChevronDown, ChevronRight, BookOpen, Eye, Search, Menu, X, Heart, GraduationCap, Sparkles, FileBadge } from 'lucide-react';
 import useAuthStore from '../../store/authStore';
+import { notificationAPI } from '../../services/api';
 import toast from 'react-hot-toast';
 
 const isAdminRole = (user) => {
@@ -43,19 +44,37 @@ const MainLayout = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [notifOpen, setNotifOpen] = useState(false);
 
-  const notifications = [
-    { id: 1, text: 'PF ECR filing due in 5 days', time: '2 min ago', type: 'warning' },
-    { id: 2, text: 'June payroll processed — ₹24.8L disbursed', time: '1 hour ago', type: 'success' },
-    { id: 3, text: '3 new leave applications pending approval', time: '2 hours ago', type: 'info' },
-    { id: 4, text: 'Priya Sharma marked attendance late (09:45 AM)', time: '3 hours ago', type: 'info' },
-    { id: 5, text: 'ESI challan generated for June', time: 'Yesterday', type: 'success' },
-  ];
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  const fetchNotifications = async () => {
+    try {
+      const res = await notificationAPI.getUnread();
+      const notifs = res?.data || [];
+      setNotifications(notifs.map(n => ({
+        id: n.id,
+        text: n.message || n.title,
+        time: n.createdAt ? new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
+        type: n.type || 'info',
+        read: n.read,
+      })));
+      setUnreadCount(notifs.filter(n => !n.read).length);
+    } catch {
+      // fallback: keep existing or show nothing
+    }
+  };
 
   useEffect(() => {
     const timer = setTimeout(() => {
       toast('Welcome back! You have 3 pending actions.', { icon: '👋' });
     }, 1500);
     return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 30000); // poll every 30s
+    return () => clearInterval(interval);
   }, []);
 
   const isAdmin = isAdminRole(user);
@@ -65,11 +84,13 @@ const MainLayout = ({ children }) => {
     { type: 'link', name: 'My Dashboard', path: '/ess', icon: LayoutDashboard },
     { type: 'link', name: 'My Attendance', path: '/attendance', icon: Calendar },
     { type: 'link', name: 'Apply Leave', path: '/leave', icon: ClipboardList },
-    { type: 'link', name: 'My Payslips', path: '/ess', icon: FileText },
     { type: 'link', name: 'Comp-Off', path: '/comp-off', icon: Timer },
     { type: 'link', name: 'Holidays', path: '/holidays', icon: CalendarCheck },
     { type: 'link', name: 'Tax & Declarations', path: '/tax-management', icon: Calculator },
     { type: 'link', name: 'Approvals', path: '/approvals', icon: Bell },
+    { type: 'link', name: 'Engagement', path: '/engagement', icon: Heart },
+    { type: 'link', name: 'Learning & Dev', path: '/lnd', icon: GraduationCap },
+    { type: 'link', name: 'AI Assistant', path: '/ai-assistant', icon: Sparkles },
   ];
 
   // Admin full sidebar
@@ -78,6 +99,12 @@ const MainLayout = ({ children }) => {
     { type: 'link', name: 'Approvals', path: '/approvals', icon: Bell },
     { type: 'link', name: 'Staff', path: '/staff', icon: Users },
     { type: 'link', name: 'ESS Portal', path: '/ess', icon: Users },
+    { type: 'link', name: 'Recruitment', path: '/recruitment', icon: Briefcase },
+    { type: 'link', name: 'Team Dashboard', path: '/team-dashboard', icon: BarChart3 },
+    { type: 'link', name: 'Engagement', path: '/engagement', icon: Heart },
+    { type: 'link', name: 'Learning & Dev', path: '/lnd', icon: GraduationCap },
+    { type: 'link', name: 'AI Assistant', path: '/ai-assistant', icon: Sparkles },
+    { type: 'link', name: 'Documents', path: '/document-generation', icon: FileBadge },
     { type: 'group', label: 'WorkLog', icon: BookOpen, items: [{ name: 'Staff WorkLog', path: '/worklog', icon: BookOpen }, { name: 'Team Overview', path: '/worklog-dashboard', icon: Eye }] },
     { type: 'group', label: 'Attendance', icon: Calendar, items: [{ name: 'Daily Attendance', path: '/attendance', icon: Calendar }, { name: 'Break Tracking', path: '/break-tracking', icon: Coffee }, { name: 'Auto-Absent', path: '/auto-absent', icon: AlertCircle }, { name: 'Regularization', path: '/attendance-regularization', icon: FileEdit }, { name: 'Shifts', path: '/shifts', icon: Clock }] },
     { type: 'group', label: 'Salary', icon: DollarSign, items: [{ name: 'Salary Processing', path: '/salary', icon: DollarSign }, { name: 'Payroll Templates', path: '/payroll-templates', icon: Layout }] },
@@ -163,17 +190,17 @@ const MainLayout = ({ children }) => {
             <div className="relative">
               <button onClick={() => setNotifOpen(!notifOpen)} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-[#F5F1E6] transition-colors relative">
                 <Bell size={15} className="text-[#9C9C9C]" />
-                <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-[#F3CC4D] border border-white" />
+                {unreadCount > 0 && <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-[#F3CC4D] border border-white" />}
               </button>
               {notifOpen && (
                 <div className="absolute right-0 top-10 w-80 bg-white rounded-2xl border border-[#E7E2D8] shadow-xl z-50 animate-slideDown overflow-hidden">
                   <div className="px-4 py-3 border-b border-[#E7E2D8] flex items-center justify-between">
                     <span className="text-sm font-semibold text-[#2B2B2B]">Notifications</span>
-                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#F3CC4D] text-[#2B2B2B] font-bold">{notifications.length}</span>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#F3CC4D] text-[#2B2B2B] font-bold">{unreadCount || notifications.length}</span>
                   </div>
                   <div className="max-h-72 overflow-y-auto">
                     {notifications.map(n => (
-                      <div key={n.id} className="px-4 py-3 border-b border-[#F5F1E6] hover:bg-[#F5F1E6] transition-colors cursor-pointer">
+                      <div key={n.id} onClick={() => { notificationAPI.markRead(n.id).catch(()=>{}); setNotifications(prev => prev.map(p => p.id === n.id ? {...p, read: true} : p)); setUnreadCount(prev => Math.max(0, prev - 1)); }} className="px-4 py-3 border-b border-[#F5F1E6] hover:bg-[#F5F1E6] transition-colors cursor-pointer">
                         <div className="flex items-start gap-2.5">
                           <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${n.type === 'success' ? 'bg-emerald-400' : n.type === 'warning' ? 'bg-[#F3CC4D]' : 'bg-[#9C9C9C]'}`} />
                           <div>

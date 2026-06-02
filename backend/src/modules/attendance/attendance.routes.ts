@@ -47,6 +47,15 @@ router.post('/lock', authenticate, authorize('ORG_ADMIN', 'HR_MANAGER'), asyncHa
   sendSuccess(res, null, 'Attendance locked');
 }));
 
+// Team attendance today (for manager)
+router.get('/team-today', authenticate, asyncHandler(async (req: any, res: any) => {
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  const tomorrow = new Date(today); tomorrow.setDate(today.getDate()+1);
+  const result = await attendanceService.getByDate(req.user.orgId, today);
+  sendSuccess(res, result);
+}));
+
 // Geofence
 router.post('/geofences', authenticate, authorize('ORG_ADMIN', 'HR_MANAGER'), asyncHandler(async (req: any, res: any) => {
   const result = await geofenceService.addGeofence(req.user.orgId, req.body.branchId, req.body);

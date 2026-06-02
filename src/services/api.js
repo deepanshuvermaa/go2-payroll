@@ -202,6 +202,14 @@ export const essAPI = {
   getTaxSummary: (params) => get('/ess/tax-summary', params),
   getHolidays: () => get('/ess/holidays'),
   updateProfile: (data) => put('/ess/profile', data),
+  checkIn: (data) => post('/ess/check-in', data),
+  checkOut: (data) => post('/ess/check-out', data),
+  getTeam: () => get('/ess/my-team'),
+  getAnnouncements: () => get('/ess/announcements'),
+  raiseRequest: (data) => post('/ess/requests', data),
+  getMyRequests: () => get('/ess/my-requests'),
+  uploadDocument: (data) => post('/ess/documents/upload', data),
+  getDocuments: () => get('/ess/documents'),
 };
 
 // ===== ONBOARDING =====
@@ -314,6 +322,59 @@ export const aiAPI = {
 export const integrationAPI = {
   tallyExport: (payrollRunId) => get(`/integrations/tally/journal-voucher/${payrollRunId}`),
   slackNotify: (data) => post('/integrations/slack/notify', data),
+};
+
+// ===== ANNOUNCEMENTS =====
+export const announcementAPI = {
+  getAll: (params) => get('/announcements', params),
+  create: (data) => post('/announcements', data),
+  markRead: (id) => post(`/announcements/${id}/read`),
+};
+
+// ===== TEAM =====
+export const teamAPI = {
+  getMyTeam: () => get('/org/my-team'),
+  getTodayStatus: () => get('/attendance/team-today'),
+  getStandupLogs: (params) => get('/worklog/standup', params),
+  addStandupNote: (data) => post('/worklog/standup', data),
+  getManagerPending: () => get('/approvals/pending'),
+};
+
+// ===== REQUESTS =====
+export const requestAPI = {
+  raise: (data) => post('/approvals/trigger', data),
+  getMyRequests: () => get('/approvals/my-requests'),
+};
+
+// ===== AUTOMATION =====
+export const automationAPI = {
+  getStatus: () => get('/automation/status'),
+  triggerPayroll: () => post('/automation/trigger/payroll'),
+  triggerLeaveAccrual: () => post('/automation/trigger/leave-accrual'),
+};
+
+// ===== ENGAGEMENT =====
+export const engagementAPI = {
+  submitPulse: (data) => post('/engagement/pulse', data),
+  getPulseHistory: () => get('/engagement/pulse/history'),
+  sendKudos: (data) => post('/engagement/kudos', data),
+  getKudosFeed: () => get('/engagement/kudos/feed'),
+  getLeaderboard: (params) => get('/engagement/leaderboard', params),
+  submitNPS: (data) => post('/engagement/nps', data),
+  getNPSHistory: () => get('/engagement/nps/history'),
+  submitMood: (data) => post('/engagement/mood', data),
+  getMoodData: () => get('/engagement/mood'),
+};
+
+// ===== LEARNING & DEVELOPMENT =====
+export const lndAPI = {
+  getTrainings: () => get('/lnd/trainings'),
+  enrollTraining: (id) => post(`/lnd/trainings/${id}/enroll`),
+  getAssessments: () => get('/lnd/assessments'),
+  submitAssessment: (id, data) => post(`/lnd/assessments/${id}/submit`, data),
+  getCertificates: () => get('/lnd/certificates'),
+  uploadCertificate: (data) => post('/lnd/certificates', data),
+  getCareerPath: () => get('/lnd/career-path'),
 };
 
 export default api;

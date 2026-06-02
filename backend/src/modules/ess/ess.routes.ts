@@ -31,4 +31,34 @@ router.put('/profile', authenticate, asyncHandler(async (req: any, res: any) => 
   sendSuccess(res, result);
 }));
 
+// My team (reportees with attendance status today)
+router.get('/my-team', authenticate, asyncHandler(async (req: any, res: any) => {
+  const result = await essService.getMyTeam(req.user.employeeId, req.user.orgId);
+  sendSuccess(res, result);
+}));
+
+// Announcements
+router.get('/announcements', authenticate, asyncHandler(async (req: any, res: any) => {
+  const result = await essService.getAnnouncements(req.user.orgId);
+  sendSuccess(res, result);
+}));
+
+// My documents
+router.get('/documents', authenticate, asyncHandler(async (req: any, res: any) => {
+  const result = await essService.getMyDocuments(req.user.employeeId);
+  sendSuccess(res, result);
+}));
+
+// My requests
+router.get('/my-requests', authenticate, asyncHandler(async (req: any, res: any) => {
+  const result = await essService.getMyRequests(req.user.userId);
+  sendSuccess(res, result);
+}));
+
+// Raise a request
+router.post('/requests', authenticate, asyncHandler(async (req: any, res: any) => {
+  const result = await essService.raiseRequest(req.user.userId, req.user.employeeId, req.body);
+  sendSuccess(res, result, 'Request raised', 201);
+}));
+
 export default router;

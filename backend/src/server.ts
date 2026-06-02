@@ -30,6 +30,8 @@ import aiRoutes from './modules/ai/ai.routes';
 import integrationRoutes from './modules/integrations/integration.routes';
 
 import dataRoutes from './modules/data/data.routes';
+import automationRoutes from './modules/automation/automation.routes';
+import { automationService } from './modules/automation/automation.service';
 
 const app = express();
 
@@ -73,6 +75,7 @@ app.use('/api/documents', documentRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/integrations', integrationRoutes);
 app.use('/api/data', dataRoutes);
+app.use('/api/automation', automationRoutes);
 
 // Serve frontend static files in production
 import path from 'path';
@@ -88,6 +91,9 @@ app.get('*', (_req, res) => {
 });
 
 app.use(errorHandler);
+
+// Start automation cron jobs
+automationService.startAll();
 
 // Start server
 const PORT = config.port;
