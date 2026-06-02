@@ -15,11 +15,11 @@ export class AutomationService {
         const now = new Date();
         for (const org of orgs) {
           const existing = await prisma.payrollRun.findFirst({
-            where: { orgId: org.id, month: now.getMonth() + 1, year: now.getFullYear(), status: { not: 'CANCELLED' } }
+            where: { orgId: org.id, month: now.getMonth() + 1, year: now.getFullYear(), status: { notIn: ['PROCESSED', 'FINALIZED', 'PAID'] } }
           });
           if (!existing) {
             await prisma.payrollRun.create({
-              data: { orgId: org.id, month: now.getMonth() + 1, year: now.getFullYear(), status: 'DRAFT', initiatedById: 'SYSTEM' }
+              data: { orgId: org.id, month: now.getMonth() + 1, year: now.getFullYear(), status: 'DRAFT', initiatedBy: 'SYSTEM' }
             });
             // Notify admins
             const admins = await prisma.user.findMany({ where: { orgId: org.id, role: { in: ['ORG_ADMIN', 'HR_MANAGER'] } } });
@@ -40,15 +40,15 @@ export class AutomationService {
         const orgs = await prisma.organization.findMany({ where: { isActive: true } });
         const now = new Date();
         for (const org of orgs) {
-          const leaveTypes = await prisma.leaveType.findMany({ where: { orgId: org.id, accrualBased: true } });
+          const leaveTypes = await prisma.leaveType.findMany({ where: { orgId: org.id, isActive: true } });
           const employees = await prisma.employee.findMany({ where: { orgId: org.id, status: 'ACTIVE' } });
           for (const lt of leaveTypes) {
-            const monthlyAccrual = (lt.maxDays || 12) / 12;
+            const monthlyAccrual = (lt.daysPerYear || 12) / 12;
             for (const emp of employees) {
               await prisma.leaveBalance.upsert({
                 where: { employeeId_leaveTypeId_year: { employeeId: emp.id, leaveTypeId: lt.id, year: now.getFullYear() } },
-                create: { employeeId: emp.id, leaveTypeId: lt.id, year: now.getFullYear(), totalDays: monthlyAccrual, usedDays: 0, balance: monthlyAccrual },
-                update: { totalDays: { increment: monthlyAccrual }, balance: { increment: monthlyAccrual } },
+                create: { employeeId: emp.id, leaveTypeId: lt.id, year: now.getFullYear(), accrued: monthlyAccrual, balance: monthlyAccrual },
+                update: { accrued: { increment: monthlyAccrual }, balance: { increment: monthlyAccrual } },
               });
             }
           }
@@ -132,12 +132,12 @@ export class AutomationService {
         });
         for (const doc of docs) {
           if (doc.employee?.userId) {
-            await notifService.send(doc.employee.userId, 'IN_APP', 'Document Expiring Soon', `Your ${doc.type} document expires on ${new Date(doc.expiryDate!).toLocaleDateString()}. Please renew it.`);
+            await notifService.send(doc.employee.userId, 'IN_APP', 'Document Expiring Soon', `Your ${doc.docType} document expires on ${new Date(doc.expiryDate!).toLocaleDateString()}. Please renew it.`);
           }
           // Notify HR too
           const hrs = await prisma.user.findMany({ where: { orgId: doc.employee.orgId, role: 'HR_MANAGER' } });
           for (const hr of hrs) {
-            await notifService.send(hr.id, 'IN_APP', 'Employee Document Expiring', `${doc.employee.firstName} ${doc.employee.lastName}'s ${doc.type} expires on ${new Date(doc.expiryDate!).toLocaleDateString()}.`);
+            await notifService.send(hr.id, 'IN_APP', 'Employee Document Expiring', `${doc.employee.firstName} ${doc.employee.lastName}'s ${doc.docType} expires on ${new Date(doc.expiryDate!).toLocaleDateString()}.`);
           }
         }
       } catch (e) { console.error('[CRON] Doc expiry cron failed:', e); }
@@ -154,7 +154,7 @@ export class AutomationService {
         const start = new Date(sixMonthsAgo); start.setDate(1); start.setHours(0,0,0,0);
         const end = new Date(sixMonthsAgo); end.setDate(new Date(end.getFullYear(), end.getMonth()+1,0).getDate()); end.setHours(23,59,59,999);
         const employees = await prisma.employee.findMany({
-          where: { dateOfJoining: { gte: start, lte: end }, status: 'ACTIVE', employmentType: 'PROBATION' },
+          where: { dateOfJoining: { gte: start, lte: end }, status: 'PROBATION' },
         });
         for (const emp of employees) {
           const hrAdmins = await prisma.user.findMany({ where: { orgId: emp.orgId, role: { in: ['ORG_ADMIN', 'HR_MANAGER'] } } });

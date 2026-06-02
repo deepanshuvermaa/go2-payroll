@@ -105,7 +105,7 @@ router.get('/my-team', authenticate, asyncHandler(async (req: any, res: any) => 
   const attMap: Record<string,any> = {};
   attendance.forEach((a:any) => { attMap[a.employeeId] = a; });
   const onLeave = await prisma.leaveApplication.findMany({
-    where: { employeeId: { in: reportees.map((r:any)=>r.id) }, status: 'APPROVED', startDate: { lte: today }, endDate: { gte: today } },
+    where: { employeeId: { in: reportees.map((r:any)=>r.id) }, status: 'APPROVED', fromDate: { lte: today }, toDate: { gte: today } },
     select: { employeeId: true },
   });
   const onLeaveSet = new Set(onLeave.map((l:any)=>l.employeeId));

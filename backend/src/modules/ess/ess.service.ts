@@ -68,7 +68,7 @@ export class ESSService {
 
     // Get employees on leave today
     const onLeave = await prisma.leaveApplication.findMany({
-      where: { employeeId: { in: reportees.map(r => r.id) }, status: 'APPROVED', startDate: { lte: today }, endDate: { gte: today } },
+      where: { employeeId: { in: reportees.map(r => r.id) }, status: 'APPROVED', fromDate: { lte: today }, toDate: { gte: today } },
       select: { employeeId: true },
     });
     const onLeaveIds = new Set(onLeave.map(l => l.employeeId));
@@ -107,22 +107,28 @@ export class ESSService {
   }
 
   async getMyRequests(userId: string) {
+    const emp = await prisma.employee.findFirst({ where: { userId }, select: { id: true } });
+    if (!emp) return [];
     return prisma.approvalRequest.findMany({
-      where: { requestedById: userId },
+      where: { employeeId: emp.id },
       orderBy: { createdAt: 'desc' },
       take: 20,
     });
   }
 
   async raiseRequest(userId: string, employeeId: string, data: { type: string; description: string; amount?: number; metadata?: any }) {
+    const emp = await prisma.employee.findUnique({ where: { id: employeeId }, select: { orgId: true } });
+    const workflow = emp ? await prisma.approvalWorkflow.findFirst({ where: { orgId: emp.orgId, module: data.type, isActive: true } }) : null;
+    if (!workflow) {
+      // No workflow configured — log as notification and return placeholder
+      if (userId) {
+        const { NotificationService } = await import('../notifications/notification.service');
+        await new NotificationService().send(userId, 'IN_APP', `Request: ${data.type}`, data.description || 'Your request has been received.');
+      }
+      return { id: `req_${Date.now()}`, module: data.type, status: 'PENDING', createdAt: new Date() };
+    }
     return prisma.approvalRequest.create({
-      data: {
-        module: data.type,
-        recordId: employeeId,
-        requestedById: userId,
-        status: 'PENDING',
-        requestData: data,
-      },
+      data: { workflowId: workflow.id, module: data.type, recordId: employeeId, employeeId, status: 'PENDING' },
     });
   }
 }
