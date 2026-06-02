@@ -53,21 +53,30 @@ const UserManagement = () => {
     if (!form.password || form.password.length < 6) { toast.error('Password must be at least 6 characters'); return; }
 
     try {
-      // Create user in real backend
-      const { authAPI } = await import('../../services/api');
-      await authAPI.register({
-        email: form.email,
-        password: form.password,
-        firstName: form.name.split(' ')[0],
-        lastName: form.name.split(' ').slice(1).join(' ') || '',
-        role: form.role === 'admin' ? 'ORG_ADMIN' : form.role === 'hr_manager' ? 'HR_MANAGER' : form.role === 'finance' ? 'FINANCE_MANAGER' : form.role === 'manager' ? 'MANAGER' : 'EMPLOYEE',
+      const token = localStorage.getItem('authToken');
+      const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+      
+      // Use direct API call to create user in SAME org
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({
+          email: form.email,
+          password: form.password,
+          firstName: form.name.split(' ')[0],
+          lastName: form.name.split(' ').slice(1).join(' ') || '',
+          orgId: currentUser.orgId,
+          role: form.role === 'admin' ? 'ORG_ADMIN' : form.role === 'hr_manager' ? 'HR_MANAGER' : form.role === 'finance' ? 'FINANCE_MANAGER' : form.role === 'manager' ? 'MANAGER' : 'EMPLOYEE',
+        }),
       });
-      toast.success(`User ${form.name} created! They can now login with ${form.email}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Failed');
+      toast.success(`User ${form.name} created! They can login with: ${form.email}`);
       setForm({ name: '', email: '', role: 'employee', password: '' });
       setShowAdd(false);
       loadUsers();
     } catch (err) {
-      toast.error(err?.response?.data?.message || err?.message || 'Failed to create user');
+      toast.error(err?.message || 'Failed to create user');
     }
   };
 
