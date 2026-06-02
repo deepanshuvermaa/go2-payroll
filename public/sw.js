@@ -1,4 +1,4 @@
-const CACHE_NAME = 'go2-payroll-v2';
+const CACHE_NAME = 'go2-payroll-v3';
 
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (e) => {
@@ -7,17 +7,19 @@ self.addEventListener('activate', (e) => {
 });
 
 self.addEventListener('fetch', (e) => {
-  // Skip non-GET, API calls, and video/range requests
+  const url = e.request.url;
+  // Skip: non-GET, API, videos, range requests, chrome-extension
   if (e.request.method !== 'GET') return;
-  if (e.request.url.includes('/api/')) return;
+  if (url.includes('/api/')) return;
+  if (url.includes('.mp4')) return;
   if (e.request.headers.get('range')) return;
+  if (!url.startsWith('http')) return;
 
   e.respondWith(
     fetch(e.request).then(r => {
-      // Only cache full responses (not 206 partial)
-      if (r.status === 200) {
+      if (r.status === 200 && r.type === 'basic') {
         const clone = r.clone();
-        caches.open(CACHE_NAME).then(c => c.put(e.request, clone));
+        caches.open(CACHE_NAME).then(c => c.put(e.request, clone)).catch(() => {});
       }
       return r;
     }).catch(() => caches.match(e.request))
