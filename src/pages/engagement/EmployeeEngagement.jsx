@@ -74,7 +74,7 @@ const NPS_COMMENTS = [
   { text: 'Growth opportunities are great but the compensation could be more competitive.', tag: 'Compensation' },
   { text: 'My manager is excellent — gives clear feedback and celebrates wins.', tag: 'Management' },
   { text: 'Would love more structured learning & development programs.', tag: 'Growth' },
-  { text: 'Work-life balance is better than anywhere I've worked before.', tag: 'Culture' },
+  { text: "Work-life balance is better than anywhere I've worked before.", tag: 'Culture' },
 ];
 
 const MOOD_BREAKDOWN = [
