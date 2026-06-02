@@ -26,4 +26,4 @@ COPY --from=frontend-build /app/frontend/dist ./frontend/dist
 EXPOSE 3000
 ENV NODE_ENV=production
 ENV PORT=3000
-CMD ["sh", "-c", "cd backend && npx prisma migrate deploy && node dist/server.js"]
+CMD ["sh", "-c", "cd backend && npx prisma migrate deploy || true && node dist/server.js"]
