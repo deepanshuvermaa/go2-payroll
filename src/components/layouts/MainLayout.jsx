@@ -4,6 +4,11 @@ import { LayoutDashboard, Users, Calendar, DollarSign, FileText, Settings, LogOu
 import useAuthStore from '../../store/authStore';
 import toast from 'react-hot-toast';
 
+const isAdminRole = (user) => {
+  const role = (user?.role || '').toLowerCase();
+  return ['admin', 'owner', 'org_admin', 'super_admin', 'hr_manager', 'finance_manager'].includes(role);
+};
+
 const SidebarGroup = ({ label, icon: Icon, items, currentPath }) => {
   const isChildActive = items.some(item => currentPath === item.path);
   const [open, setOpen] = useState(isChildActive);
@@ -53,7 +58,22 @@ const MainLayout = ({ children }) => {
     return () => clearTimeout(timer);
   }, []);
 
-  const sidebarConfig = [
+  const isAdmin = isAdminRole(user);
+
+  // Employee-only sidebar
+  const employeeSidebar = [
+    { type: 'link', name: 'My Dashboard', path: '/ess', icon: LayoutDashboard },
+    { type: 'link', name: 'My Attendance', path: '/attendance', icon: Calendar },
+    { type: 'link', name: 'Apply Leave', path: '/leave', icon: ClipboardList },
+    { type: 'link', name: 'My Payslips', path: '/ess', icon: FileText },
+    { type: 'link', name: 'Comp-Off', path: '/comp-off', icon: Timer },
+    { type: 'link', name: 'Holidays', path: '/holidays', icon: CalendarCheck },
+    { type: 'link', name: 'Tax & Declarations', path: '/tax-management', icon: Calculator },
+    { type: 'link', name: 'Approvals', path: '/approvals', icon: Bell },
+  ];
+
+  // Admin full sidebar
+  const sidebarConfig = isAdmin ? [
     { type: 'link', name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
     { type: 'link', name: 'Approvals', path: '/approvals', icon: Bell },
     { type: 'link', name: 'Staff', path: '/staff', icon: Users },
@@ -68,7 +88,7 @@ const MainLayout = ({ children }) => {
     { type: 'group', label: 'Compliance', icon: Shield, items: [{ name: 'Tax Management', path: '/tax-management', icon: Calculator }, { name: 'Statutory Reports', path: '/statutory-reports', icon: FileCheck }, { name: 'Compliance Calendar', path: '/compliance-calendar', icon: Bell }, { name: 'Audit Trail', path: '/audit-trail', icon: Shield }] },
     { type: 'group', label: 'Operations', icon: Zap, items: [{ name: 'Automation', path: '/payroll-automation', icon: Zap }, { name: 'Banking', path: '/banking', icon: Building2 }, { name: 'Onboarding', path: '/onboarding', icon: Users }] },
     { type: 'group', label: 'Settings', icon: Settings, items: [{ name: 'Settings', path: '/settings', icon: Settings }, { name: 'Currency', path: '/currency-settings', icon: Coins }, { name: 'User Management', path: '/user-management', icon: Users }] },
-  ];
+  ] : employeeSidebar;
 
   return (
     <div className="flex h-screen" style={{ background: '#F5F1E6' }}>

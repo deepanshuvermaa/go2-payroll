@@ -88,21 +88,6 @@ const StaffManagement = () => {
   };
 
   const handleOpenModal = (staffMember = null) => {
-    // Check subscription before adding new staff
-    if (!staffMember) {
-      const { canAddStaff, maxStaff, plan } = checkSubscription();
-      if (!canAddStaff) {
-        toast.error('Please subscribe to add staff members');
-        return;
-      }
-
-      const currentStaffCount = staff.filter(s => s.status === 'active').length;
-      if (currentStaffCount >= maxStaff) {
-        toast.error(`Maximum ${maxStaff} active staff allowed on ${plan} plan`);
-        return;
-      }
-    }
-
     if (staffMember) {
       setEditingStaff(staffMember);
       setFormData(staffMember);
