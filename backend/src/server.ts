@@ -31,8 +31,11 @@ import integrationRoutes from './modules/integrations/integration.routes';
 
 const app = express();
 
+// Trust proxy (Railway/Heroku/etc use reverse proxies)
+app.set('trust proxy', 1);
+
 // Security & middleware
-app.use(helmet());
+app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors({ origin: config.cors.origins, credentials: true }));
 app.use(compression());
 app.use(express.json({ limit: '10mb' }));

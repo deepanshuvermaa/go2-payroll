@@ -8,22 +8,29 @@ import { authenticator } from 'otplib';
 import { v4 as uuid } from 'uuid';
 
 export class AuthService {
-  async register(data: { email: string; password: string; orgId: string; role?: any; firstName: string; lastName: string }) {
+  async register(data: { email: string; password: string; orgId?: string; role?: any; firstName: string; lastName: string; orgName?: string }) {
     const existing = await prisma.user.findUnique({ where: { email: data.email } });
     if (existing) throw new AppError(409, 'Email already registered');
 
+    // Create org if not provided
+    let orgId = data.orgId;
+    if (!orgId) {
+      const org = await prisma.organization.create({ data: { name: data.orgName || `${data.firstName}'s Organization`, email: data.email } });
+      orgId = org.id;
+    }
+
     const passwordHash = await bcrypt.hash(data.password, 12);
     const user = await prisma.user.create({
-      data: { email: data.email, passwordHash, orgId: data.orgId, role: data.role || 'EMPLOYEE' },
+      data: { email: data.email, passwordHash, orgId, role: data.role || 'ORG_ADMIN' },
     });
 
     const employee = await prisma.employee.create({
       data: {
-        orgId: data.orgId,
+        orgId,
         userId: user.id,
         employeeCode: `EMP-${Date.now()}`,
         firstName: data.firstName,
-        lastName: data.lastName,
+        lastName: data.lastName || '',
         email: data.email,
         dateOfJoining: new Date(),
       },
