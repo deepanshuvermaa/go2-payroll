@@ -36,9 +36,9 @@ export class AuthService {
       },
     });
 
-    const tokens = this.generateTokens({ userId: user.id, orgId: data.orgId, role: user.role, employeeId: employee.id });
+    const tokens = this.generateTokens({ userId: user.id, orgId: orgId!, role: user.role, employeeId: employee.id });
     await this.saveRefreshToken(user.id, tokens.refreshToken);
-    return { user: { id: user.id, email: user.email, role: user.role }, employee, ...tokens };
+    return { user: { id: user.id, email: user.email, role: user.role, orgId }, employee, ...tokens };
   }
 
   async login(email: string, password: string) {

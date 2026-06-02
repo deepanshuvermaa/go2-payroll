@@ -1,3 +1,4 @@
+# Build: 2026-06-02-v2
 FROM node:20-alpine AS frontend-build
 WORKDIR /app/frontend
 COPY package.json package-lock.json ./
