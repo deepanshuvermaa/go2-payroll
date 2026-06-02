@@ -29,6 +29,8 @@ import documentRoutes from './modules/documents/document.routes';
 import aiRoutes from './modules/ai/ai.routes';
 import integrationRoutes from './modules/integrations/integration.routes';
 
+import dataRoutes from './modules/data/data.routes';
+
 const app = express();
 
 // Trust proxy (Railway/Heroku/etc use reverse proxies)
@@ -70,6 +72,7 @@ app.use('/api/recruitment', recruitmentRoutes);
 app.use('/api/documents', documentRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/integrations', integrationRoutes);
+app.use('/api/data', dataRoutes);
 
 // Serve frontend static files in production
 import path from 'path';
@@ -88,10 +91,16 @@ app.use(errorHandler);
 
 // Start server
 const PORT = config.port;
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, '0.0.0.0', async () => {
   console.log(`🚀 Go2-Payroll API running on port ${PORT}`);
   console.log(`📋 Environment: ${config.nodeEnv}`);
   console.log(`🔗 Health check: http://localhost:${PORT}/health`);
+  // Ensure data store table exists
+  try {
+    const prisma = (await import('./config/database')).default;
+    await prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS org_data_store (org_id TEXT NOT NULL, key TEXT NOT NULL, value JSONB, updated_at TIMESTAMP DEFAULT NOW(), PRIMARY KEY (org_id, key))`);
+    console.log('✅ Data store table ready');
+  } catch (e: any) { console.warn('Data store table creation skipped:', e.message); }
 });
 
 export default app;

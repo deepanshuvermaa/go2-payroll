@@ -141,8 +141,8 @@ const useAuthStore = create((set, get) => ({
       });
 
       toast.success(`Welcome back, ${user.name || user.email}!`);
-      // Trigger background data sync
-      import('../services/apiSync.js').then(m => m.default.fullSync()).catch(() => {});
+      // Sync all data from backend to localStorage
+      import('../services/payrollDataStore').then(m => m.default.syncFromBackend()).catch(() => {});
       return { success: true };
 
     } catch (error) {

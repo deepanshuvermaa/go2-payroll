@@ -148,7 +148,7 @@ class PayrollDataStore {
     return key;
   }
 
-  // Generic get method
+  // Generic get method - tries API first, falls back to localStorage cache
   getData(key) {
     try {
       const userKey = this.getUserKey(key);
@@ -160,16 +160,49 @@ class PayrollDataStore {
     }
   }
 
-  // Generic set method
+  // Generic set method - saves to localStorage AND syncs to backend
   setData(key, value) {
     try {
       const userKey = this.getUserKey(key);
       localStorage.setItem(userKey, JSON.stringify(value));
+      // Background sync to backend
+      this._syncToBackend(key, value);
       return true;
     } catch (error) {
       console.error(`Error setting data for key ${key}:`, error);
       return false;
     }
+  }
+
+  // Sync data to backend storage API
+  _syncToBackend(key, value) {
+    const token = localStorage.getItem('authToken');
+    if (!token) return;
+    fetch('/api/data/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ key, value }),
+    }).catch(() => {}); // silent fail - localStorage is the source of truth until backend confirms
+  }
+
+  // Load all data from backend on login
+  async syncFromBackend() {
+    const token = localStorage.getItem('authToken');
+    if (!token) return;
+    try {
+      const res = await fetch('/api/data/load', {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const { data } = await res.json();
+        if (data && typeof data === 'object') {
+          Object.entries(data).forEach(([key, value]) => {
+            const userKey = this.getUserKey(key);
+            localStorage.setItem(userKey, JSON.stringify(value));
+          });
+        }
+      }
+    } catch (e) { console.warn('Backend sync failed, using local data'); }
   }
 
   // ========== STAFF METHODS ==========
