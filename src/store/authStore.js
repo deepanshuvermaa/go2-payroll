@@ -85,21 +85,27 @@ const useAuthStore = create((set, get) => ({
         }));
 
       } catch (backendError) {
-        // Try offline login
-        console.warn('Backend unavailable, attempting offline login...');
-
-        const cachedUser = localStorage.getItem('currentUser');
-        const cachedToken = localStorage.getItem('authToken');
-        const cachedSubscription = localStorage.getItem('userSubscription');
-        const cachedOfflineCredentials = localStorage.getItem('offline_credentials');
-
-        if (!cachedUser || !cachedToken || !cachedOfflineCredentials) {
-          throw new Error('Cannot login offline - No cached credentials found. Please connect to internet for first login.');
+        // If backend returned an actual error response (not network failure), show it
+        if (backendError?.response?.data?.message) {
+          throw new Error(backendError.response.data.message);
         }
 
-        const offlineCredentials = JSON.parse(cachedOfflineCredentials);
-        const derivedKey = CryptoJS.SHA256(`go2-payroll-${credentials.email}-offline`).toString();
-        const decryptedPassword = CryptoJS.AES.decrypt(
+        // Only try offline if it's a network error
+        if (!backendError?.response) {
+          console.warn('Backend unavailable, attempting offline login...');
+
+          const cachedUser = localStorage.getItem('currentUser');
+          const cachedToken = localStorage.getItem('authToken');
+          const cachedOfflineCredentials = localStorage.getItem('offline_credentials');
+
+          if (!cachedUser || !cachedToken || !cachedOfflineCredentials) {
+            throw new Error('Unable to connect to server. Please check your internet connection.');
+          }
+
+          const cachedSubscription = localStorage.getItem('userSubscription');
+          const offlineCredentials = JSON.parse(cachedOfflineCredentials);
+          const derivedKey = CryptoJS.SHA256(`go2-payroll-${credentials.email}-offline`).toString();
+          const decryptedPassword = CryptoJS.AES.decrypt(
           offlineCredentials.password,
           derivedKey
         ).toString(CryptoJS.enc.Utf8);
@@ -114,6 +120,9 @@ const useAuthStore = create((set, get) => ({
         subscription = cachedSubscription ? JSON.parse(cachedSubscription) : null;
 
         toast.success('Logged in (Offline Mode)');
+        } else {
+          throw backendError;
+        }
       }
 
       // Store auth data

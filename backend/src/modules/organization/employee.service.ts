@@ -29,8 +29,8 @@ export class EmployeeService {
         { employeeCode: { contains: filters.search, mode: 'insensitive' } },
       ];
     }
-    const page = filters.page || 1;
-    const limit = filters.limit || 50;
+    const page = parseInt(filters.page) || 1;
+    const limit = parseInt(filters.limit) || 50;
     const [data, total] = await Promise.all([
       prisma.employee.findMany({ where, skip: (page - 1) * limit, take: limit, include: { department: true, designation: true, branch: true }, orderBy: { firstName: 'asc' } }),
       prisma.employee.count({ where }),
