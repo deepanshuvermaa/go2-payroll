@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Receipt, Plus, Check, X, FileText, Calendar, Upload } from 'lucide-react';
 import toast from 'react-hot-toast';
 import payrollDataStore from '../../services/payrollDataStore';
+import { expenseAPI } from '../../services/api';
 import { formatCurrency, formatDate } from '../../utils/dateHelpers';
 
 const REIMBURSEMENT_CATEGORIES = [
@@ -34,11 +35,38 @@ const ReimbursementManagement = () => {
     loadData();
   }, []);
 
-  const loadData = () => {
-    const allReimbursements = payrollDataStore.getReimbursements();
+  const loadData = async () => {
+    // Always load staff from local store
     const allStaff = payrollDataStore.getStaff();
-    setReimbursements(allReimbursements);
     setStaff(allStaff);
+
+    // Try real API first; fall back to local store on error
+    try {
+      const [myRes, pendingRes] = await Promise.allSettled([
+        expenseAPI.getMyReports(),
+        expenseAPI.getPending(),
+      ]);
+
+      let combined = [];
+
+      if (myRes.status === 'fulfilled' && myRes.value?.data?.length) {
+        combined = myRes.value.data;
+      } else {
+        combined = payrollDataStore.getReimbursements();
+      }
+
+      if (pendingRes.status === 'fulfilled' && pendingRes.value?.data?.length) {
+        // Merge pending approvals (avoid duplicates by id)
+        const existingIds = new Set(combined.map((r) => r.id));
+        pendingRes.value.data.forEach((r) => {
+          if (!existingIds.has(r.id)) combined.push(r);
+        });
+      }
+
+      setReimbursements(combined);
+    } catch {
+      setReimbursements(payrollDataStore.getReimbursements());
+    }
   };
 
   const handleInputChange = (e) => {
@@ -49,7 +77,7 @@ const ReimbursementManagement = () => {
     }));
   };
 
-  const handleAddReimbursement = (e) => {
+  const handleAddReimbursement = async (e) => {
     e.preventDefault();
 
     if (!formData.staffId) {
@@ -85,40 +113,58 @@ const ReimbursementManagement = () => {
       billNumber: formData.billNumber,
     };
 
-    const saved = payrollDataStore.addReimbursement(reimbursementData);
-    if (saved) {
-      toast.success('Reimbursement claim submitted');
-      setShowAddModal(false);
-      setFormData({
-        staffId: '',
-        category: '',
-        amount: '',
-        description: '',
-        expenseDate: new Date().toISOString().split('T')[0],
-        billNumber: '',
-      });
-      loadData();
+    // Call real API; fall back to local store on failure
+    try {
+      await expenseAPI.createReport(reimbursementData);
+    } catch {
+      payrollDataStore.addReimbursement(reimbursementData);
     }
+
+    toast.success('Reimbursement claim submitted');
+    setShowAddModal(false);
+    setFormData({
+      staffId: '',
+      category: '',
+      amount: '',
+      description: '',
+      expenseDate: new Date().toISOString().split('T')[0],
+      billNumber: '',
+    });
+    loadData();
   };
 
-  const handleApproveReimbursement = (reimbursementId) => {
-    const success = payrollDataStore.approveReimbursement(reimbursementId);
-    if (success) {
-      toast.success('Reimbursement approved');
-      loadData();
+  const handleApproveReimbursement = async (reimbursementId) => {
+    // Optimistic local update
+    payrollDataStore.approveReimbursement(reimbursementId);
+    toast.success('Reimbursement approved');
+
+    try {
+      await expenseAPI.approve(reimbursementId);
+    } catch {
+      // local update already applied; silent fail for offline resilience
     }
+
+    loadData();
   };
 
-  const handleRejectReimbursement = (reimbursementId) => {
-    const reimbursements = payrollDataStore.getReimbursements();
-    const reimbursement = reimbursements.find(r => r.id === reimbursementId);
+  const handleRejectReimbursement = async (reimbursementId) => {
+    // Optimistic local update
+    const localList = payrollDataStore.getReimbursements();
+    const reimbursement = localList.find(r => r.id === reimbursementId);
     if (reimbursement) {
       reimbursement.status = 'rejected';
       reimbursement.rejectedDate = new Date().toISOString();
       payrollDataStore.updateReimbursement(reimbursement);
-      toast.success('Reimbursement rejected');
-      loadData();
     }
+    toast.success('Reimbursement rejected');
+
+    try {
+      await expenseAPI.reject(reimbursementId);
+    } catch {
+      // silent fail
+    }
+
+    loadData();
   };
 
   const getFilteredReimbursements = () => {

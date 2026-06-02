@@ -28,6 +28,8 @@ import recruitmentRoutes from './modules/recruitment/recruitment.routes';
 import documentRoutes from './modules/documents/document.routes';
 import aiRoutes from './modules/ai/ai.routes';
 import integrationRoutes from './modules/integrations/integration.routes';
+import engagementRoutes from './modules/engagement/engagement.routes';
+import lndRoutes from './modules/lnd/lnd.routes';
 
 import dataRoutes from './modules/data/data.routes';
 import automationRoutes from './modules/automation/automation.routes';
@@ -76,6 +78,8 @@ app.use('/api/ai', aiRoutes);
 app.use('/api/integrations', integrationRoutes);
 app.use('/api/data', dataRoutes);
 app.use('/api/automation', automationRoutes);
+app.use('/api/engagement', engagementRoutes);
+app.use('/api/lnd', lndRoutes);
 
 // Serve frontend static files in production
 import path from 'path';

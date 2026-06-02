@@ -170,6 +170,11 @@ const ESSPortal = () => {
   const [workedSecs, setWorkedSecs] = useState(0);
   const [geoCoords, setGeoCoords] = useState(null);
   const [geoStatus, setGeoStatus] = useState('idle'); // idle | verifying | verified | denied
+
+  // Location preference: 'ip' | 'gps' | 'none'
+  const [locPref, setLocPref] = useState(() => localStorage.getItem('locPref') || 'ip');
+  const [ipLocation, setIpLocation] = useState(null);
+  const [ipStatus, setIpStatus] = useState('idle'); // idle | loading | loaded | error
   const [recentAtt, setRecentAtt] = useState([
     { date: '2025-07-08', in: '09:05', out: '18:12', hours: '9:07' },
     { date: '2025-07-07', in: '09:22', out: '18:45', hours: '9:23' },
@@ -215,6 +220,15 @@ const ESSPortal = () => {
     return () => clearInterval(workerRef.current);
   }, [punchedIn, punchInTime]);
 
+  // Auto-detect IP location when pref is ip
+  useEffect(() => {
+    if (locPref === 'none') { setIpStatus('idle'); return; }
+    setIpStatus('loading');
+    attendanceAPI.getIpLocation()
+      .then(r => { setIpLocation(r.data || r); setIpStatus('loaded'); })
+      .catch(() => setIpStatus('error'));
+  }, [locPref]);
+
   // Load data on mount
   useEffect(() => {
     (async () => {
@@ -259,30 +273,48 @@ const ESSPortal = () => {
 
   const handlePunch = async () => {
     if (!punchedIn) {
-      setGeoStatus('verifying');
-      navigator.geolocation?.getCurrentPosition(
-        async (pos) => {
-          setGeoCoords({ lat: pos.coords.latitude.toFixed(5), lng: pos.coords.longitude.toFixed(5) });
-          setGeoStatus('verified');
-          try {
-            await attendanceAPI.checkIn({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
-          } catch { /* offline */ }
-          setPunchedIn(true);
-          setPunchInTime(Date.now());
-          toast.success('Punched in successfully!');
-        },
-        () => {
-          setGeoStatus('denied');
-          setPunchedIn(true);
-          setPunchInTime(Date.now());
-          toast.success('Punched in (location unavailable)');
-        },
-        { timeout: 6000 }
-      );
+      if (locPref === 'gps') {
+        setGeoStatus('verifying');
+        navigator.geolocation?.getCurrentPosition(
+          async (pos) => {
+            const coords = { lat: pos.coords.latitude.toFixed(5), lng: pos.coords.longitude.toFixed(5) };
+            setGeoCoords(coords);
+            setGeoStatus('verified');
+            try { await attendanceAPI.checkIn({ location: `${coords.lat},${coords.lng}`, locationSource: 'gps' }); } catch { /* offline */ }
+            setPunchedIn(true);
+            setPunchInTime(Date.now());
+            toast.success('Punched in with GPS!');
+          },
+          () => {
+            setGeoStatus('denied');
+            setPunchedIn(true);
+            setPunchInTime(Date.now());
+            toast.success('Punched in (GPS unavailable)');
+          },
+          { timeout: 6000 }
+        );
+      } else if (locPref === 'ip') {
+        const locStr = ipLocation?.city
+          ? `${ipLocation.city}${ipLocation.region ? ', ' + ipLocation.region : ''}, ${ipLocation.country} (${ipLocation.ip})`
+          : undefined;
+        try { await attendanceAPI.checkIn({ location: locStr, locationSource: 'ip' }); } catch { /* offline */ }
+        setGeoStatus('verified');
+        setPunchedIn(true);
+        setPunchInTime(Date.now());
+        toast.success(`Punched in from ${ipLocation?.city || 'your location'}!`);
+      } else {
+        try { await attendanceAPI.checkIn({ locationSource: 'none' }); } catch { /* offline */ }
+        setPunchedIn(true);
+        setPunchInTime(Date.now());
+        toast.success('Punched in (location tracking off)');
+      }
     } else {
-      try {
-        await attendanceAPI.checkOut({ latitude: geoCoords?.lat, longitude: geoCoords?.lng });
-      } catch { /* offline */ }
+      const locStr = locPref === 'gps' && geoCoords
+        ? `${geoCoords.lat},${geoCoords.lng}`
+        : locPref === 'ip' && ipLocation?.city
+          ? `${ipLocation.city}, ${ipLocation.country} (${ipLocation.ip})`
+          : undefined;
+      try { await attendanceAPI.checkOut({ location: locStr }); } catch { /* offline */ }
       setPunchedIn(false);
       setWorkedSecs(0);
       setPunchInTime(null);
@@ -445,10 +477,10 @@ const ESSPortal = () => {
             <button
               onClick={handlePunch}
               disabled={geoStatus === 'verifying'}
-              style={{ width: 180, height: 180, borderRadius: '50%', fontSize: 18, fontWeight: 700, letterSpacing: 2, border: 'none', cursor: 'pointer', background: punchedIn ? '#ef4444' : '#10b981', color: '#fff' }}
+              style={{ width: 180, height: 180, borderRadius: '50%', fontSize: 18, fontWeight: 700, letterSpacing: 2, border: 'none', cursor: geoStatus === 'verifying' ? 'not-allowed' : 'pointer', background: punchedIn ? '#ef4444' : '#10b981', color: '#fff' }}
               className={punchedIn ? 'punch-pulse' : ''}
             >
-              {geoStatus === 'verifying' ? 'Verifying...' : punchedIn ? 'PUNCH OUT' : 'PUNCH IN'}
+              {geoStatus === 'verifying' ? 'Locating...' : punchedIn ? 'PUNCH OUT' : 'PUNCH IN'}
             </button>
 
             {/* Hours worked */}
@@ -458,16 +490,81 @@ const ESSPortal = () => {
             </div>
           </div>
 
-          {/* Location card */}
-          <div className="card flex items-start gap-3">
-            <MapPin size={18} className="text-[#9C9C9C] mt-0.5 flex-shrink-0" />
-            <div>
-              <p className="text-sm font-medium text-[#2B2B2B]">Location Status</p>
-              {geoStatus === 'idle' && <p className="text-xs text-[#9C9C9C] mt-0.5">Location will be captured on punch-in.</p>}
-              {geoStatus === 'verifying' && <p className="text-xs text-amber-600 mt-0.5">Verifying location...</p>}
-              {geoStatus === 'verified' && geoCoords && <p className="text-xs text-emerald-600 mt-0.5">Location verified ✓ — {geoCoords.lat}, {geoCoords.lng}</p>}
-              {geoStatus === 'denied' && <p className="text-xs text-red-500 mt-0.5">Location permission denied. Punched in without GPS.</p>}
+          {/* Location preference card */}
+          <div className="card space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <MapPin size={16} className="text-[#9C9C9C]" />
+                <p className="text-sm font-semibold text-[#2B2B2B]">Location Tracking</p>
+              </div>
+              <div className="flex gap-1 p-1 bg-[#F5F1E6] rounded-xl">
+                {[{ id: 'ip', label: 'IP' }, { id: 'gps', label: 'GPS' }, { id: 'none', label: 'Off' }].map(opt => (
+                  <button key={opt.id}
+                    onClick={() => { setLocPref(opt.id); localStorage.setItem('locPref', opt.id); }}
+                    className={`text-xs px-3 py-1 rounded-lg font-medium transition-all ${locPref === opt.id ? 'bg-[#2B2B2B] text-white shadow-sm' : 'text-[#9C9C9C] hover:text-[#2B2B2B]'}`}>
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
             </div>
+
+            {locPref === 'ip' && (
+              <div className="rounded-xl bg-[#F5F1E6] p-3">
+                {ipStatus === 'loading' && (
+                  <div className="flex items-center gap-2">
+                    <RefreshCw size={13} className="text-amber-500 animate-spin" />
+                    <p className="text-xs text-amber-600">Detecting your location via IP...</p>
+                  </div>
+                )}
+                {ipStatus === 'loaded' && ipLocation && (
+                  <div className="flex items-start gap-2">
+                    <CheckCircle size={14} className="text-emerald-500 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-xs font-medium text-[#2B2B2B]">{[ipLocation.city, ipLocation.region, ipLocation.country].filter(Boolean).join(', ')}</p>
+                      <p className="text-[10px] text-[#9C9C9C] mt-0.5">IP: {ipLocation.ip} · City-level accuracy (~5–50 km)</p>
+                    </div>
+                  </div>
+                )}
+                {ipStatus === 'error' && (
+                  <div className="flex items-center gap-2">
+                    <AlertCircle size={13} className="text-red-400" />
+                    <p className="text-xs text-red-500">Could not resolve location. Check will still be recorded.</p>
+                  </div>
+                )}
+                {ipStatus === 'idle' && <p className="text-xs text-[#9C9C9C]">IP location will be detected on next punch.</p>}
+              </div>
+            )}
+
+            {locPref === 'gps' && (
+              <div className="rounded-xl bg-[#F5F1E6] p-3">
+                {geoStatus === 'idle' && <p className="text-xs text-[#9C9C9C]">GPS coordinates captured on punch-in. Requires browser permission.</p>}
+                {geoStatus === 'verifying' && (
+                  <div className="flex items-center gap-2">
+                    <RefreshCw size={13} className="text-amber-500 animate-spin" />
+                    <p className="text-xs text-amber-600">Acquiring GPS signal...</p>
+                  </div>
+                )}
+                {geoStatus === 'verified' && geoCoords && (
+                  <div className="flex items-start gap-2">
+                    <CheckCircle size={14} className="text-emerald-500 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-xs font-medium text-emerald-700">GPS verified — {geoCoords.lat}, {geoCoords.lng}</p>
+                      <p className="text-[10px] text-[#9C9C9C] mt-0.5">High accuracy (~10–20 m)</p>
+                    </div>
+                  </div>
+                )}
+                {geoStatus === 'denied' && (
+                  <div className="flex items-center gap-2">
+                    <XCircle size={13} className="text-red-400" />
+                    <p className="text-xs text-red-500">GPS permission denied. Switch to IP or Off.</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {locPref === 'none' && (
+              <p className="text-xs text-[#9C9C9C] px-1">Location tracking is disabled. Punch-in will be recorded without any location data.</p>
+            )}
           </div>
 
           {/* Recent attendance */}

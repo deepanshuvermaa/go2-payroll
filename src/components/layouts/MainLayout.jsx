@@ -66,7 +66,7 @@ const MainLayout = ({ children }) => {
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      toast('Welcome back! You have 3 pending actions.', { icon: '👋' });
+      toast('Welcome back!', { icon: '👋' });
     }, 1500);
     return () => clearTimeout(timer);
   }, []);
@@ -196,7 +196,17 @@ const MainLayout = ({ children }) => {
                 <div className="absolute right-0 top-10 w-80 bg-white rounded-2xl border border-[#E7E2D8] shadow-xl z-50 animate-slideDown overflow-hidden">
                   <div className="px-4 py-3 border-b border-[#E7E2D8] flex items-center justify-between">
                     <span className="text-sm font-semibold text-[#2B2B2B]">Notifications</span>
-                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#F3CC4D] text-[#2B2B2B] font-bold">{unreadCount || notifications.length}</span>
+                    <div className="flex items-center gap-2">
+                      {unreadCount > 0 && (
+                        <button
+                          onClick={() => { notificationAPI.markAllRead().catch(() => {}); fetchNotifications(); }}
+                          className="text-[10px] text-[#9C9C9C] hover:text-[#2B2B2B] transition-colors"
+                        >
+                          Mark all read
+                        </button>
+                      )}
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#F3CC4D] text-[#2B2B2B] font-bold">{unreadCount > 0 ? unreadCount : notifications.length}</span>
+                    </div>
                   </div>
                   <div className="max-h-72 overflow-y-auto">
                     {notifications.map(n => (

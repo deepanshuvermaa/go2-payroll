@@ -5,6 +5,7 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import toast from 'react-hot-toast';
 import payrollDataStore from '../../services/payrollDataStore';
+import { reportAPI } from '../../services/api';
 import { formatCurrency, formatDate } from '../../utils/dateHelpers';
 
 const Reports = () => {
@@ -38,7 +39,21 @@ const Reports = () => {
     }
   };
 
-  const generateSalaryReport = () => {
+  const generateSalaryReport = async () => {
+    try {
+      const res = await reportAPI.salaryRegister({ month: selectedMonth, year: selectedYear });
+      const records = res?.data || res || [];
+      if (records.length > 0) {
+        setSummary({
+          totalRecords: records.length,
+          totalGross: records.reduce((s, r) => s + (r.grossSalary || r.gross || 0), 0),
+          totalDeductions: records.reduce((s, r) => s + (r.totalDeductions || r.deductions || 0), 0),
+          totalNet: records.reduce((s, r) => s + (r.netSalary || r.net || 0), 0),
+        });
+        setReportData(records);
+        return;
+      }
+    } catch { /* fallback */ }
     const records = payrollDataStore.getSalaryRecords(selectedMonth, selectedYear);
 
     const totalGross = records.reduce((sum, r) => sum + r.grossSalary, 0);
@@ -55,7 +70,20 @@ const Reports = () => {
     setReportData(records);
   };
 
-  const generateAttendanceReport = () => {
+  const generateAttendanceReport = async () => {
+    try {
+      const res = await reportAPI.attendanceRegister({ month: selectedMonth, year: selectedYear });
+      const records = res?.data || res || [];
+      if (records.length > 0) {
+        setSummary({
+          totalStaff: records.length,
+          avgAttendance: (records.reduce((s, r) => s + (r.attendancePercentage || 0), 0) / records.length || 0).toFixed(2),
+          totalOvertimeHours: records.reduce((s, r) => s + (r.overtimeHours || 0), 0),
+        });
+        setReportData(records);
+        return;
+      }
+    } catch { /* fallback */ }
     const attendance = payrollDataStore.getAttendance(selectedMonth, selectedYear);
     const staff = payrollDataStore.getStaff();
 
@@ -94,7 +122,12 @@ const Reports = () => {
     setReportData(reportData);
   };
 
-  const generateLeaveReport = () => {
+  const generateLeaveReport = async () => {
+    try {
+      const res = await reportAPI.attrition({ month: selectedMonth, year: selectedYear });
+      const records = res?.data || res || [];
+      if (records.length > 0) { setReportData(records); setSummary({ total: records.length }); return; }
+    } catch { /* fallback */ }
     const leaves = payrollDataStore.getLeaveApplications();
     const filteredLeaves = leaves.filter(l => {
       const date = new Date(l.appliedDate);
@@ -117,7 +150,16 @@ const Reports = () => {
     setReportData(filteredLeaves);
   };
 
-  const generateStaffReport = () => {
+  const generateStaffReport = async () => {
+    try {
+      const res = await reportAPI.headcount();
+      const records = res?.data || res || [];
+      if (records.length > 0) {
+        setSummary({ total: records.length, active: records.filter(r => r.status === 'ACTIVE').length, inactive: records.filter(r => r.status !== 'ACTIVE').length });
+        setReportData(records);
+        return;
+      }
+    } catch { /* fallback */ }
     const staff = payrollDataStore.getStaff();
 
     const activeStaff = staff.filter(s => s.status === 'active').length;

@@ -15,34 +15,54 @@ const TABS = [
 
 const FALLBACK_RESPONSES = [
   {
-    test: (m) => m.includes('leave'),
+    test: (m) => m.includes('hi') || m.includes('hello') || m.includes('hey'),
     reply:
-      'You currently have 8 days of Casual Leave and 10 days of Earned Leave remaining. To apply for leave, go to your ESS Dashboard → Leave tab.',
+      'Hello! 👋 I\'m your Go2-Payroll HR assistant. I can help you with leave policies, payslips, attendance, onboarding, expenses, and more. What would you like to know?',
   },
   {
-    test: (m) => m.includes('payslip') || m.includes('salary'),
+    test: (m) => m === 'help' || m.includes('what can you') || m.includes('topics'),
     reply:
-      'Your latest payslip for May 2026 shows Net Pay: ₹68,500. Basic: ₹35,000, HRA: ₹14,000, Allowances: ₹19,500. You can download it from ESS → Payslips.',
+      'I can help you with: 📋 Leave & Vacation — balances, policies, how to apply\n💰 Salary & Payslips — view payslips, salary structure, CTC breakdown\n⏱ Attendance & Punch — check-in/out, IP vs GPS, regularisation\n🚀 Onboarding & Joining — checklist, documents needed\n🧾 Expense & Reimbursement — how to submit claims\n📖 Policies & Handbook — where to find HR policies\n\nJust ask me anything!',
   },
   {
-    test: (m) => m.includes('holiday'),
+    test: (m) => m.includes('leave') || m.includes('vacation') || m.includes('holiday'),
     reply:
-      'Next holidays: Independence Day (Aug 15), Gandhi Jayanti (Oct 2), Diwali (Oct 20). Full calendar is available under Holidays menu.',
+      'You currently have 8 days of Casual Leave and 10 days of Earned Leave remaining. To apply for leave: ESS Dashboard → Leave → Apply Leave. You can also check the holiday calendar under Holidays menu — next public holidays are Independence Day (Aug 15), Gandhi Jayanti (Oct 2), and Diwali (Oct 20).',
   },
   {
-    test: (m) => m.includes('wfh') || m.includes('work from home'),
+    test: (m) => m.includes('salary') || m.includes('payslip') || m.includes('pay') || m.includes('ctc'),
     reply:
-      'To request WFH: Go to ESS → Raise a Request → WFH Request. Fill in dates and reason. Your manager will approve within 24 hours.',
+      'Your latest payslip for May 2026 shows Net Pay: ₹68,500 (Basic: ₹35,000, HRA: ₹14,000, Allowances: ₹19,500). To view or download payslips: ESS Dashboard → Payslips. Your CTC breakdown and salary structure are also available there. For salary revision requests, raise a ticket via ESS → Raise a Request.',
   },
   {
-    test: (m) => m.includes('policy'),
+    test: (m) => m.includes('attendance') || m.includes('punch') || m.includes('check in') || m.includes('check-in'),
     reply:
-      'You can find all HR policies in My Documents section. Key policies: Leave Policy (12 CL + 12 SL annually), Attendance (9am–6pm standard), Expense Reimbursement (within 30 days).',
+      'To mark attendance: ESS Dashboard → Attendance → Check In/Out. The system supports both IP-based (office network) and GPS-based (field) punch. Standard hours are 9am–6pm. If you missed a punch, use Attendance → Regularisation to submit a correction — your manager will approve within 24 hours.',
+  },
+  {
+    test: (m) => m.includes('onboard') || m.includes('joining') || m.includes('new employee') || m.includes('document'),
+    reply:
+      'Onboarding checklist includes: ✅ Submit photo ID, address proof, educational certificates\n✅ Complete bank account details\n✅ Sign offer letter and NDA\n✅ IT assets allotment\n✅ PF & ESI nominations\n\nAll onboarding tasks are tracked in ESS → My Onboarding. Contact hr@company.com for any joining-related queries.',
+  },
+  {
+    test: (m) => m.includes('expense') || m.includes('reimbursement') || m.includes('claim'),
+    reply:
+      'To submit an expense claim: Reimbursements → Submit Claim → fill in category, amount, date, and bill number. Attach supporting receipts. Claims must be submitted within 30 days of incurring the expense. Approved claims are reimbursed with the next payroll cycle.',
+  },
+  {
+    test: (m) => m.includes('policy') || m.includes('rules') || m.includes('handbook'),
+    reply:
+      'HR policies are available under My Documents → Company Policies. Key policies: Leave Policy (12 CL + 12 SL per year), Attendance (9am–6pm with 30-min grace), Expense Reimbursement (submit within 30 days), Work from Home (up to 2 days/week with manager approval). For the full employee handbook, contact HR.',
+  },
+  {
+    test: (m) => m.includes('wfh') || m.includes('work from home') || m.includes('remote'),
+    reply:
+      'To request WFH: ESS → Raise a Request → WFH Request. Fill in dates and reason. Your manager will approve within 24 hours. WFH is allowed up to 2 days/week as per the current policy. Extended remote work requires HR approval.',
   },
 ];
 
 const DEFAULT_REPLY =
-  "I'll look into that for you. For complex HR queries, please contact hr@company.com or raise a ticket through ESS → Raise a Request.";
+  "I'll look into that for you. For complex HR queries, please contact hr@company.com or raise a ticket through ESS → Raise a Request. You can also type 'help' to see all topics I can assist with.";
 
 const getFallback = (msg) => {
   const lower = msg.toLowerCase();
@@ -54,16 +74,16 @@ const INITIAL_MESSAGES = [
   {
     id: 1,
     from: 'ai',
-    text: "Hi! 👋 I'm your HR assistant powered by Go2-Payroll AI. Ask me anything about leave balance, payslips, policies, or team information.",
+    text: "Hi! 👋 I'm your HR assistant powered by Go2-Payroll AI. Ask me anything about leave, payslips, attendance, onboarding, expenses, or company policies.",
   },
   {
     id: 2,
     from: 'ai',
-    text: "Try asking: 'What's my leave balance?', 'When is the next holiday?', or 'How do I apply for WFH?'",
+    text: "Try asking: 'What's my leave balance?', 'How do I submit an expense claim?', 'How does punch in/out work?', or type 'help' to see all topics.",
   },
 ];
 
-const QUICK_CHIPS = ['Leave Balance', 'Next Holiday', 'My Payslip', 'WFH Policy'];
+const QUICK_CHIPS = ['Leave Balance', 'My Payslip', 'Attendance / Punch', 'Submit Expense', 'Onboarding Docs', 'HR Policies', 'Help'];
 
 const INITIAL_ANOMALIES = [
   {
@@ -410,143 +430,314 @@ function AnomaliesTab() {
   );
 }
 
+/* ─── Tax helpers ─── */
+
+function calcOldRegimeTax(taxableIncome) {
+  // FY 2024-25 Old Regime slabs (no rebate 87A applied separately)
+  if (taxableIncome <= 250000) return 0;
+  let tax = 0;
+  if (taxableIncome > 250000) tax += Math.min(taxableIncome - 250000, 250000) * 0.05;
+  if (taxableIncome > 500000) tax += Math.min(taxableIncome - 500000, 500000) * 0.20;
+  if (taxableIncome > 1000000) tax += (taxableIncome - 1000000) * 0.30;
+  // Rebate 87A: if taxable ≤ 500000, full rebate up to ₹12,500
+  if (taxableIncome <= 500000) tax = Math.max(0, tax - 12500);
+  // 4% cess
+  tax = Math.round(tax * 1.04);
+  return tax;
+}
+
+function calcNewRegimeTax(taxableIncome) {
+  // FY 2024-25 New Regime slabs
+  if (taxableIncome <= 300000) return 0;
+  let tax = 0;
+  if (taxableIncome > 300000) tax += Math.min(taxableIncome - 300000, 400000) * 0.05;
+  if (taxableIncome > 700000) tax += Math.min(taxableIncome - 700000, 300000) * 0.10;
+  if (taxableIncome > 1000000) tax += Math.min(taxableIncome - 1000000, 200000) * 0.15;
+  if (taxableIncome > 1200000) tax += Math.min(taxableIncome - 1200000, 300000) * 0.20;
+  if (taxableIncome > 1500000) tax += (taxableIncome - 1500000) * 0.30;
+  // Rebate 87A (new regime): if taxable ≤ 700000, full rebate up to ₹25,000
+  if (taxableIncome <= 700000) tax = Math.max(0, tax - 25000);
+  // 4% cess
+  tax = Math.round(tax * 1.04);
+  return tax;
+}
+
+const fmt = (n) => '₹' + n.toLocaleString('en-IN');
+
 /* ─── Tax Tab ─── */
 
 function TaxTab() {
-  const handleSwitch = () => toast.success('Tax preference updated');
+  const [ctc, setCtc] = useState(900000);
+  const [ctcInput, setCtcInput] = useState('900000');
+  const [declared80C, setDeclared80C] = useState(85000);
+  const [declared80CInput, setDeclared80CInput] = useState('85000');
+  const [hraMonthly, setHraMonthly] = useState(14000);
+  const [hraInput, setHraInput] = useState('14000');
+  const [declared80D, setDeclared80D] = useState(15000);
+  const [declared80DInput, setDeclared80DInput] = useState('15000');
+
+  // Old regime deductions
+  const stdDed = 50000;
+  const c80 = Math.min(declared80C, 150000);
+  const hraExemption = Math.min(hraMonthly * 12, ctc * 0.1); // simplified
+  const d80 = Math.min(declared80D, 25000);
+  const oldTaxableIncome = Math.max(0, ctc - stdDed - c80 - hraExemption - d80);
+  const oldTax = calcOldRegimeTax(oldTaxableIncome);
+
+  // New regime deductions
+  const newStdDed = 75000;
+  const newTaxableIncome = Math.max(0, ctc - newStdDed);
+  const newTax = calcNewRegimeTax(newTaxableIncome);
+
+  const saving = Math.abs(oldTax - newTax);
+  const betterRegime = oldTax <= newTax ? 'old' : 'new';
+
+  const chartData = [
+    { name: 'Old Regime', tax: oldTax, fill: '#F3CC4D' },
+    { name: 'New Regime', tax: newTax, fill: '#2B2B2B' },
+  ];
+
+  const c80Pct = Math.min(100, Math.round((declared80C / 150000) * 100));
+  const c80Remaining = Math.max(0, 150000 - declared80C);
+
+  // Actionable tips based on which regime is better
+  const tips = betterRegime === 'old'
+    ? [
+        c80Remaining > 0
+          ? `Invest ${fmt(c80Remaining)} more in 80C instruments (ELSS, PPF, NSC) to fully utilise the ₹1,50,000 limit and reduce taxable income further.`
+          : 'Your 80C is fully utilised. Consider NPS Tier 1 under 80CCD(1B) for an extra ₹50,000 deduction.',
+        hraMonthly > 0
+          ? 'Ensure rent receipts are submitted for maximum HRA exemption. Proper documentation prevents disallowance.'
+          : 'If you are paying rent, declare HRA — it is one of the largest exemptions available under the old regime.',
+        d80 < 25000
+          ? `Increase health insurance premium to claim the full ₹25,000 under 80D (currently only ${fmt(declared80D)} declared).`
+          : 'Consider including parents under 80D for an additional ₹25,000–₹50,000 deduction.',
+      ]
+    : [
+        'Your income profile benefits from the New Regime\'s lower slab rates. No need to lock money in tax-saving instruments.',
+        'The New Regime has fewer exemptions but simpler filing. Ensure your employer has marked you under the new regime for TDS.',
+        'If your deductions grow significantly (e.g. home loan interest, higher 80C), re-evaluate the old regime next year.',
+      ];
+
+  function handleCtcBlur() {
+    const v = parseInt(ctcInput.replace(/,/g, ''), 10);
+    if (!isNaN(v) && v > 0) setCtc(v);
+    else setCtcInput(String(ctc));
+  }
 
   return (
-    <div className="p-4 space-y-5">
+    <div className="p-4 space-y-5 overflow-y-auto" style={{ maxHeight: '80vh' }}>
       <div>
         <h3 className="font-semibold text-base" style={{ color: '#2B2B2B' }}>
           Smart Tax Optimizer
         </h3>
         <p className="text-sm mt-0.5" style={{ color: '#9C9C9C' }}>
-          Compare regimes and maximize your deductions for FY 2025–26.
+          Old vs New Regime comparison — FY 2024–25 Indian slabs with 4% cess.
         </p>
       </div>
 
-      {/* Regime comparison */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Old Regime — winner */}
-        <div
-          className="rounded-xl p-4"
-          style={{ border: '2px solid #F3CC4D', background: '#FFFDF5' }}
-        >
-          <div className="flex items-center justify-between mb-2">
-            <span className="font-semibold text-sm" style={{ color: '#2B2B2B' }}>
-              Old Regime
-            </span>
-            <span
-              className="text-xs px-2 py-0.5 rounded-full font-semibold"
-              style={{ background: '#F3CC4D', color: '#2B2B2B' }}
-            >
-              Recommended ✓
-            </span>
-          </div>
-          <p className="text-xs leading-relaxed" style={{ color: '#9C9C9C' }}>
-            Taxable income ₹8,40,000 after deductions (80C: ₹1,50,000, HRA: ₹60,000, NPS:
-            ₹50,000).
-          </p>
-          <p className="text-2xl font-bold mt-3" style={{ color: '#2B2B2B' }}>
-            ₹69,600{' '}
-            <span className="text-sm font-normal" style={{ color: '#9C9C9C' }}>
-              tax/year
-            </span>
-          </p>
-          <p className="text-xs mt-2 font-semibold" style={{ color: '#059669' }}>
-            You save ₹24,000 per year with Old Regime ✓
-          </p>
+      {/* Inputs */}
+      <div
+        className="rounded-xl p-4 grid grid-cols-2 gap-3"
+        style={{ border: '1px solid #E7E2D8', background: '#fff' }}
+      >
+        <div>
+          <label className="text-xs font-medium block mb-1" style={{ color: '#9C9C9C' }}>Annual CTC (₹)</label>
+          <input
+            type="text"
+            className="w-full text-sm px-3 py-2 rounded-lg border outline-none font-semibold"
+            style={{ borderColor: '#E7E2D8', color: '#2B2B2B', background: '#F5F1E6' }}
+            value={ctcInput}
+            onChange={e => setCtcInput(e.target.value)}
+            onBlur={handleCtcBlur}
+          />
         </div>
-
-        {/* New Regime */}
-        <div
-          className="rounded-xl p-4"
-          style={{ border: '1px solid #E7E2D8', background: '#fff' }}
-        >
-          <span className="font-semibold text-sm" style={{ color: '#2B2B2B' }}>
-            New Regime
-          </span>
-          <p className="text-xs leading-relaxed mt-2" style={{ color: '#9C9C9C' }}>
-            Taxable income ₹10,00,000 (only ₹75,000 std deduction).
-          </p>
-          <p className="text-2xl font-bold mt-3" style={{ color: '#2B2B2B' }}>
-            ₹93,600{' '}
-            <span className="text-sm font-normal" style={{ color: '#9C9C9C' }}>
-              tax/year
-            </span>
-          </p>
+        <div>
+          <label className="text-xs font-medium block mb-1" style={{ color: '#9C9C9C' }}>80C Declared (₹)</label>
+          <input
+            type="text"
+            className="w-full text-sm px-3 py-2 rounded-lg border outline-none font-semibold"
+            style={{ borderColor: '#E7E2D8', color: '#2B2B2B', background: '#F5F1E6' }}
+            value={declared80CInput}
+            onChange={e => setDeclared80CInput(e.target.value)}
+            onBlur={() => {
+              const v = parseInt(declared80CInput.replace(/,/g, ''), 10);
+              if (!isNaN(v) && v >= 0) setDeclared80C(Math.min(v, 150000));
+              else setDeclared80CInput(String(declared80C));
+            }}
+          />
+        </div>
+        <div>
+          <label className="text-xs font-medium block mb-1" style={{ color: '#9C9C9C' }}>HRA Received / Month (₹)</label>
+          <input
+            type="text"
+            className="w-full text-sm px-3 py-2 rounded-lg border outline-none font-semibold"
+            style={{ borderColor: '#E7E2D8', color: '#2B2B2B', background: '#F5F1E6' }}
+            value={hraInput}
+            onChange={e => setHraInput(e.target.value)}
+            onBlur={() => {
+              const v = parseInt(hraInput.replace(/,/g, ''), 10);
+              if (!isNaN(v) && v >= 0) setHraMonthly(v);
+              else setHraInput(String(hraMonthly));
+            }}
+          />
+        </div>
+        <div>
+          <label className="text-xs font-medium block mb-1" style={{ color: '#9C9C9C' }}>80D (Health Ins.) (₹)</label>
+          <input
+            type="text"
+            className="w-full text-sm px-3 py-2 rounded-lg border outline-none font-semibold"
+            style={{ borderColor: '#E7E2D8', color: '#2B2B2B', background: '#F5F1E6' }}
+            value={declared80DInput}
+            onChange={e => setDeclared80DInput(e.target.value)}
+            onBlur={() => {
+              const v = parseInt(declared80DInput.replace(/,/g, ''), 10);
+              if (!isNaN(v) && v >= 0) setDeclared80D(Math.min(v, 25000));
+              else setDeclared80DInput(String(declared80D));
+            }}
+          />
         </div>
       </div>
 
-      {/* 80C Optimizer */}
-      <div
-        className="rounded-xl p-4 space-y-3"
-        style={{ border: '1px solid #E7E2D8', background: '#fff' }}
-      >
-        <h4 className="font-semibold text-sm" style={{ color: '#2B2B2B' }}>
-          80C Optimizer
-        </h4>
+      {/* Regime Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div
+          className="rounded-xl p-4"
+          style={{
+            border: betterRegime === 'old' ? '2px solid #F3CC4D' : '1px solid #E7E2D8',
+            background: betterRegime === 'old' ? '#FFFDF5' : '#fff',
+          }}
+        >
+          <div className="flex items-center justify-between mb-2">
+            <span className="font-semibold text-sm" style={{ color: '#2B2B2B' }}>Old Regime</span>
+            {betterRegime === 'old' && (
+              <span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ background: '#F3CC4D', color: '#2B2B2B' }}>
+                Saves more ✓
+              </span>
+            )}
+          </div>
+          <p className="text-xs leading-relaxed" style={{ color: '#9C9C9C' }}>
+            Taxable: {fmt(oldTaxableIncome)} (after Std Ded {fmt(stdDed)}, 80C {fmt(c80)}, HRA {fmt(Math.round(hraExemption))}, 80D {fmt(d80)})
+          </p>
+          <p className="text-2xl font-bold mt-3" style={{ color: '#2B2B2B' }}>
+            {fmt(oldTax)}{' '}
+            <span className="text-sm font-normal" style={{ color: '#9C9C9C' }}>/ year</span>
+          </p>
+          {betterRegime === 'old' && (
+            <p className="text-xs mt-2 font-semibold" style={{ color: '#059669' }}>
+              You save {fmt(saving)} vs New Regime
+            </p>
+          )}
+        </div>
+
+        <div
+          className="rounded-xl p-4"
+          style={{
+            border: betterRegime === 'new' ? '2px solid #F3CC4D' : '1px solid #E7E2D8',
+            background: betterRegime === 'new' ? '#FFFDF5' : '#fff',
+          }}
+        >
+          <div className="flex items-center justify-between mb-2">
+            <span className="font-semibold text-sm" style={{ color: '#2B2B2B' }}>New Regime</span>
+            {betterRegime === 'new' && (
+              <span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ background: '#F3CC4D', color: '#2B2B2B' }}>
+                Saves more ✓
+              </span>
+            )}
+          </div>
+          <p className="text-xs leading-relaxed" style={{ color: '#9C9C9C' }}>
+            Taxable: {fmt(newTaxableIncome)} (only Std Ded {fmt(newStdDed)} allowed)
+          </p>
+          <p className="text-2xl font-bold mt-3" style={{ color: '#2B2B2B' }}>
+            {fmt(newTax)}{' '}
+            <span className="text-sm font-normal" style={{ color: '#9C9C9C' }}>/ year</span>
+          </p>
+          {betterRegime === 'new' && (
+            <p className="text-xs mt-2 font-semibold" style={{ color: '#059669' }}>
+              You save {fmt(saving)} vs Old Regime
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Bar Chart */}
+      <div className="rounded-xl p-4" style={{ border: '1px solid #E7E2D8', background: '#fff' }}>
+        <p className="text-sm font-semibold mb-3" style={{ color: '#2B2B2B' }}>Tax Comparison</p>
+        <ResponsiveContainer width="100%" height={160}>
+          <BarChart data={chartData} barCategoryGap="40%" margin={{ top: 4, right: 10, left: 10, bottom: 4 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#E7E2D8" />
+            <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#9C9C9C' }} />
+            <YAxis tick={{ fontSize: 11, fill: '#9C9C9C' }} tickFormatter={v => '₹' + (v / 1000) + 'k'} />
+            <Tooltip formatter={(v) => fmt(v)} />
+            <Bar dataKey="tax" name="Tax" radius={[4, 4, 0, 0]} barSize={48}>
+              {chartData.map((entry, i) => (
+                <Cell key={i} fill={entry.fill} />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* 80C Progress */}
+      <div className="rounded-xl p-4 space-y-3" style={{ border: '1px solid #E7E2D8', background: '#fff' }}>
+        <h4 className="font-semibold text-sm" style={{ color: '#2B2B2B' }}>80C Investment Progress</h4>
         <div>
-          <div className="flex justify-between text-xs mb-1" style={{ color: '#9C9C9C' }}>
-            <span>₹85,000 utilized</span>
-            <span>₹1,50,000 limit · 57%</span>
+          <div className="flex justify-between text-xs mb-1.5" style={{ color: '#9C9C9C' }}>
+            <span>{fmt(declared80C)} utilized</span>
+            <span>₹1,50,000 limit · {c80Pct}%</span>
           </div>
-          <div className="h-2 rounded-full" style={{ background: '#E7E2D8' }}>
-            <div className="h-2 rounded-full" style={{ background: '#F3CC4D', width: '57%' }} />
+          <div className="h-2.5 rounded-full" style={{ background: '#E7E2D8' }}>
+            <div
+              className="h-2.5 rounded-full transition-all duration-500"
+              style={{ background: c80Pct >= 100 ? '#059669' : '#F3CC4D', width: `${c80Pct}%` }}
+            />
           </div>
-          <p className="text-xs mt-1" style={{ color: '#9C9C9C' }}>
-            ₹65,000 remaining — invest now to maximize deductions.
+          <p className="text-xs mt-1.5" style={{ color: c80Pct >= 100 ? '#059669' : '#9C9C9C' }}>
+            {c80Pct >= 100 ? '80C limit fully utilised.' : `${fmt(c80Remaining)} remaining — invest more to reduce old regime tax.`}
           </p>
         </div>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-2 pt-1">
           {[
-            { label: 'ELSS Funds', amount: '₹50,000 potential', sub: 'High returns, 3yr lock-in' },
-            { label: 'NPS Tier 1', amount: '₹50,000 extra', sub: 'Under 80CCD(1B)' },
-            { label: 'PPF', amount: '₹65,000', sub: '7.1% guaranteed' },
-            { label: 'Tax-Saver FD', amount: 'Up to ₹1,50,000', sub: '5yr lock-in' },
+            { label: 'ELSS Funds', amount: 'Market-linked', sub: '3yr lock-in, potential 12–15% returns' },
+            { label: 'PPF', amount: '7.1% p.a.', sub: '15yr tenure, fully tax-free' },
+            { label: 'NPS Tier 1', amount: '+₹50,000', sub: 'Extra under 80CCD(1B), beyond 80C' },
+            { label: 'Tax-Saver FD', amount: '6.5–7.25%', sub: '5yr lock-in, fixed returns' },
           ].map((s) => (
-            <div
-              key={s.label}
-              className="rounded-lg p-3 text-xs"
-              style={{ background: '#F5F1E6', border: '1px solid #E7E2D8' }}
-            >
-              <p className="font-semibold" style={{ color: '#2B2B2B' }}>
-                {s.label}
-              </p>
-              <p className="font-bold mt-0.5" style={{ color: '#B8960A' }}>
-                {s.amount}
-              </p>
-              <p className="mt-0.5" style={{ color: '#9C9C9C' }}>
-                {s.sub}
-              </p>
+            <div key={s.label} className="rounded-lg p-3 text-xs" style={{ background: '#F5F1E6', border: '1px solid #E7E2D8' }}>
+              <p className="font-semibold" style={{ color: '#2B2B2B' }}>{s.label}</p>
+              <p className="font-bold mt-0.5" style={{ color: '#B8960A' }}>{s.amount}</p>
+              <p className="mt-0.5" style={{ color: '#9C9C9C' }}>{s.sub}</p>
             </div>
           ))}
         </div>
       </div>
 
-      {/* HRA */}
-      <div
-        className="rounded-xl p-4 flex items-center justify-between"
-        style={{ border: '1px solid #E7E2D8', background: '#fff' }}
-      >
-        <div>
-          <p className="font-semibold text-sm" style={{ color: '#2B2B2B' }}>
-            HRA Exemption
-          </p>
-          <p className="text-xs mt-0.5" style={{ color: '#9C9C9C' }}>
-            Current HRA exemption: ₹60,000/year. Declare rent receipts to maximize.
-          </p>
+      {/* Actionable Tips */}
+      <div className="rounded-xl p-4 space-y-3" style={{ border: '1px solid #E7E2D8', background: '#fff' }}>
+        <h4 className="font-semibold text-sm" style={{ color: '#2B2B2B' }}>
+          Personalised Tips — {betterRegime === 'old' ? 'Old' : 'New'} Regime Recommended
+        </h4>
+        <div className="space-y-2">
+          {tips.map((tip, i) => (
+            <div key={i} className="flex items-start gap-2.5 text-xs" style={{ color: '#2B2B2B' }}>
+              <span
+                className="w-5 h-5 rounded-full flex items-center justify-center font-bold flex-shrink-0 text-[10px] mt-0.5"
+                style={{ background: '#F3CC4D', color: '#2B2B2B' }}
+              >
+                {i + 1}
+              </span>
+              <p className="leading-relaxed">{tip}</p>
+            </div>
+          ))}
         </div>
-        <ChevronRight size={16} color="#9C9C9C" />
       </div>
 
       <button
-        onClick={handleSwitch}
+        onClick={() => toast.success(`Tax preference set to ${betterRegime === 'old' ? 'Old' : 'New'} Regime`)}
         className="w-full py-2.5 rounded-xl text-sm font-semibold transition-opacity hover:opacity-80"
         style={{ background: '#2B2B2B', color: '#F3CC4D' }}
       >
-        Switch to Old Regime
+        Set {betterRegime === 'old' ? 'Old' : 'New'} Regime as Preference
       </button>
     </div>
   );

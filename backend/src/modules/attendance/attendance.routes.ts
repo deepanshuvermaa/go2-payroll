@@ -7,11 +7,18 @@ import { authenticate, authorize } from '../../middleware/auth';
 const router = Router();
 
 router.post('/check-in', authenticate, asyncHandler(async (req: any, res: any) => {
-  const result = await attendanceService.checkIn(req.user.employeeId, req.body.source || 'WEB', req.body.location, req.body.selfieUrl);
+  // Capture client IP as fallback location if none provided
+  const clientIp = ((req.headers['x-forwarded-for'] as string) || '').split(',')[0].trim() || req.socket?.remoteAddress || req.ip || '';
+  const isPrivateIp = !clientIp || clientIp === '127.0.0.1' || clientIp === '::1' || clientIp.startsWith('192.168') || clientIp.startsWith('10.') || clientIp.startsWith('172.');
+  const location = req.body.location || (isPrivateIp ? undefined : `ip:${clientIp}`);
+  const result = await attendanceService.checkIn(req.user.employeeId, req.body.source || 'WEB', location, req.body.selfieUrl);
   sendSuccess(res, result);
 }));
 router.post('/check-out', authenticate, asyncHandler(async (req: any, res: any) => {
-  const result = await attendanceService.checkOut(req.user.employeeId, req.body.location);
+  const clientIp = ((req.headers['x-forwarded-for'] as string) || '').split(',')[0].trim() || req.socket?.remoteAddress || req.ip || '';
+  const isPrivateIp = !clientIp || clientIp === '127.0.0.1' || clientIp === '::1' || clientIp.startsWith('192.168') || clientIp.startsWith('10.') || clientIp.startsWith('172.');
+  const location = req.body.location || (isPrivateIp ? undefined : `ip:${clientIp}`);
+  const result = await attendanceService.checkOut(req.user.employeeId, location);
   sendSuccess(res, result);
 }));
 router.post('/mark', authenticate, authorize('ORG_ADMIN', 'HR_MANAGER', 'HR_EXECUTIVE'), asyncHandler(async (req: any, res: any) => {
@@ -54,6 +61,26 @@ router.get('/team-today', authenticate, asyncHandler(async (req: any, res: any) 
   const tomorrow = new Date(today); tomorrow.setDate(today.getDate()+1);
   const result = await attendanceService.getByDate(req.user.orgId, today);
   sendSuccess(res, result);
+}));
+
+// IP location lookup — resolves caller's public IP to city-level location
+router.get('/ip-location', authenticate, asyncHandler(async (req: any, res: any) => {
+  const clientIp = ((req.headers['x-forwarded-for'] as string) || '').split(',')[0].trim() || req.socket?.remoteAddress || req.ip || '';
+  const isPrivate = !clientIp || clientIp === '127.0.0.1' || clientIp === '::1' || clientIp.startsWith('192.168') || clientIp.startsWith('10.') || clientIp.startsWith('172.');
+
+  if (isPrivate) {
+    return sendSuccess(res, { ip: clientIp || 'unknown', city: 'Local Network', region: '', country: 'Local', lat: null, lng: null, source: 'local' });
+  }
+
+  try {
+    const resp = await fetch(`http://ip-api.com/json/${clientIp}?fields=status,city,regionName,country,lat,lon`);
+    const geo: any = await resp.json();
+    if (geo.status === 'success') {
+      return sendSuccess(res, { ip: clientIp, city: geo.city, region: geo.regionName, country: geo.country, lat: geo.lat, lng: geo.lon, source: 'ip-api' });
+    }
+  } catch { /* fall through */ }
+
+  sendSuccess(res, { ip: clientIp, city: 'Unknown', region: '', country: 'Unknown', lat: null, lng: null, source: 'fallback' });
 }));
 
 // Geofence

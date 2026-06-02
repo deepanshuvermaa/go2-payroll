@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Star, Heart, Crown, Trophy, Target, Lightbulb, Users, TrendingUp,
   CheckCircle, Send, ChevronRight, Calendar, Award, Smile, BarChart2,
@@ -8,7 +8,9 @@ import {
   LineChart, Line, BarChart, Bar, RadialBarChart, RadialBar,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from 'recharts';
-import { useAuthStore } from '../../store/authStore';
+import useAuthStore from '../../store/authStore';
+import toast from 'react-hot-toast';
+import { engagementAPI } from '../../services/api';
 
 // ─── Mock Data ────────────────────────────────────────────────────────────────
 
@@ -111,7 +113,7 @@ function enpsLabel(score) {
 
 // ─── Tab: Pulse ───────────────────────────────────────────────────────────────
 
-function PulseTab() {
+function PulseTab({ trend }) {
   const [selectedMood, setSelectedMood] = useState(null);
   const [stars, setStars] = useState(0);
   const [hoverStar, setHoverStar] = useState(0);
@@ -120,8 +122,11 @@ function PulseTab() {
 
   const emojis = ['😫', '😕', '😐', '🙂', '🤩'];
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!selectedMood || !stars) return;
+    try {
+      await engagementAPI.submitPulse({ mood: selectedMood + 1, energy: stars, productivity: stars });
+    } catch { /* offline fallback */ }
     setSubmitted(true);
   };
 
@@ -188,7 +193,7 @@ function PulseTab() {
       <div className="card">
         <h3 className="font-semibold text-[#2B2B2B] mb-4">Team Mood Trend — Last 6 Weeks</h3>
         <ResponsiveContainer width="100%" height={220}>
-          <LineChart data={MOOD_PULSE_DATA}>
+          <LineChart data={trend || MOOD_PULSE_DATA}>
             <CartesianGrid strokeDasharray="3 3" stroke="#E7E2D8" />
             <XAxis dataKey="week" tick={{ fontSize: 12, fill: '#9C9C9C' }} />
             <YAxis domain={[1, 5]} tick={{ fontSize: 12, fill: '#9C9C9C' }} />
@@ -219,28 +224,22 @@ function PulseTab() {
 
 // ─── Tab: Recognition ─────────────────────────────────────────────────────────
 
-function RecognitionTab() {
+function RecognitionTab({ feed, setFeed }) {
   const [search, setSearch] = useState('');
   const [recipient, setRecipient] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [badge, setBadge] = useState(null);
   const [message, setMessage] = useState('');
-  const [feed, setFeed] = useState(MOCK_FEED);
-  const [kudosSent, setKudosSent] = useState(false);
-
   const filtered = TEAM_MEMBERS.filter(m => m.toLowerCase().includes(search.toLowerCase()) && search);
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!recipient || !badge || !message.trim()) return;
-    const b = BADGE_TYPES.find(bt => bt.id === badge);
-    const newItem = {
-      id: Date.now(), sender: 'You', recipient,
-      badge: `${b.icon} ${b.label}`, message, time: 'just now', likes: 0, liked: false, special: null,
-    };
-    setFeed([newItem, ...feed]);
-    setKudosSent(true);
+    try {
+      await engagementAPI.sendKudos({ toId: recipient, badge, message, points: 10 });
+    } catch {}
+    setFeed(prev => [{ id: Date.now(), sender: 'You', recipient, badge, message, time: 'just now', likes: 0, liked: false }, ...prev]);
     setRecipient(''); setSearch(''); setBadge(null); setMessage('');
-    setTimeout(() => setKudosSent(false), 3000);
+    toast.success('Kudos sent!');
   };
 
   const toggleLike = (id) => {
@@ -253,12 +252,6 @@ function RecognitionTab() {
     <div className="space-y-6">
       <div className="card">
         <h3 className="font-semibold text-[#2B2B2B] mb-4">Give a Kudos 🎉</h3>
-
-        {kudosSent && (
-          <div className="mb-4 bg-green-50 border border-green-200 rounded-xl p-3 flex items-center gap-2 text-green-700 text-sm font-medium">
-            <CheckCircle size={16} /> Kudos sent successfully!
-          </div>
-        )}
 
         <div className="relative mb-4">
           <label className="text-xs font-medium text-[#9C9C9C] uppercase tracking-wide mb-1 block">To</label>
@@ -354,7 +347,7 @@ function RecognitionTab() {
 
 // ─── Tab: Leaderboard ─────────────────────────────────────────────────────────
 
-function LeaderboardTab() {
+function LeaderboardTab({ data }) {
   const [period, setPeriod] = useState('month');
   const [category, setCategory] = useState('recognized');
   const currentUser = 'Rahul Mehta';
@@ -362,7 +355,7 @@ function LeaderboardTab() {
   const periodLabels = { month: 'This Month', quarter: 'This Quarter', year: 'This Year' };
   const catLabels = { recognized: 'Most Recognized', punctual: 'Most Punctual', goals: 'Top Goal Achievers' };
 
-  const sorted = [...LEADERBOARD_DATA].sort((a, b) =>
+  const sorted = [...(data || LEADERBOARD_DATA)].sort((a, b) =>
     category === 'recognized' ? b.kudos - a.kudos :
     category === 'punctual' ? b.attendance - a.attendance :
     b.goals - a.goals
@@ -459,17 +452,29 @@ function LeaderboardTab() {
 
 // ─── Tab: eNPS ────────────────────────────────────────────────────────────────
 
-function ENPSTab() {
+function ENPSTab({ data }) {
   const [showModal, setShowModal] = useState(false);
   const [npsScore, setNpsScore] = useState(null);
   const [npsComment, setNpsComment] = useState('');
   const [npsSubmitted, setNpsSubmitted] = useState(false);
   const [commentIndex, setCommentIndex] = useState(0);
 
-  const label = enpsLabel(42);
+  const currentScore = data?.score ?? 42;
+  const label = enpsLabel(currentScore);
 
-  const handleNpsSubmit = () => {
+  const enpsBreakdown = data
+    ? [
+        { name: 'Promoters', value: data.promoters, fill: '#22c55e' },
+        { name: 'Passives', value: data.passives, fill: '#f59e0b' },
+        { name: 'Detractors', value: data.detractors, fill: '#ef4444' },
+      ]
+    : ENPS_BREAKDOWN;
+
+  const handleNpsSubmit = async () => {
     if (npsScore === null) return;
+    try {
+      await engagementAPI.submitENPS({ score: npsScore, comment: npsComment });
+    } catch {}
     setNpsSubmitted(true);
     setTimeout(() => { setShowModal(false); setNpsSubmitted(false); setNpsScore(null); setNpsComment(''); }, 2000);
   };
@@ -478,9 +483,9 @@ function ENPSTab() {
     <div className="space-y-6">
       <div className="card text-center">
         <p className="text-sm font-medium text-[#9C9C9C] uppercase tracking-widest mb-1">Employee Net Promoter Score</p>
-        <div className="text-7xl font-black text-[#2B2B2B] my-3">+42</div>
+        <div className="text-7xl font-black text-[#2B2B2B] my-3">{currentScore >= 0 ? `+${currentScore}` : currentScore}</div>
         <span className={`text-lg font-bold ${label.color}`}>{label.text}</span>
-        <p className="text-sm text-[#9C9C9C] mt-1">Based on 87 responses this quarter</p>
+        <p className="text-sm text-[#9C9C9C] mt-1">Based on {data?.total ?? 87} responses this quarter</p>
         <button onClick={() => setShowModal(true)} className="btn-primary mt-4 mx-auto block">
           Take the NPS Survey
         </button>
@@ -490,7 +495,7 @@ function ENPSTab() {
         <div className="card">
           <h3 className="font-semibold text-[#2B2B2B] mb-4 text-center">Score Breakdown</h3>
           <ResponsiveContainer width="100%" height={220}>
-            <RadialBarChart cx="50%" cy="50%" innerRadius="30%" outerRadius="90%" data={ENPS_BREAKDOWN} startAngle={90} endAngle={-270}>
+            <RadialBarChart cx="50%" cy="50%" innerRadius="30%" outerRadius="90%" data={enpsBreakdown} startAngle={90} endAngle={-270}>
               <RadialBar dataKey="value" cornerRadius={4} label={{ position: 'insideStart', fill: '#fff', fontSize: 11, fontWeight: 700 }} />
               <Legend iconType="circle" iconSize={10} formatter={(v) => <span className="text-xs text-[#2B2B2B]">{v}</span>} />
               <Tooltip contentStyle={{ borderRadius: 10, border: '1px solid #E7E2D8', fontSize: 12 }} />
@@ -680,6 +685,17 @@ function MoodTab() {
 
 export default function EmployeeEngagement() {
   const [tab, setTab] = useState('pulse');
+  const [kudosFeed, setKudosFeed] = useState(MOCK_FEED);
+  const [leaderboard, setLeaderboard] = useState(LEADERBOARD_DATA);
+  const [enpsData, setEnpsData] = useState(null);
+  const [pulseTrend, setPulseTrend] = useState(MOOD_PULSE_DATA);
+
+  useEffect(() => {
+    engagementAPI.getKudosFeed().then(r => { if (r?.data?.length) setKudosFeed(r.data); }).catch(() => {});
+    engagementAPI.getLeaderboard().then(r => { if (r?.data?.length) setLeaderboard(r.data); }).catch(() => {});
+    engagementAPI.getENPS().then(r => { if (r?.data) setEnpsData(r.data); }).catch(() => {});
+    engagementAPI.getPulseTrend().then(r => { if (r?.data?.length) setPulseTrend(r.data); }).catch(() => {});
+  }, []);
 
   const tabs = [
     { id: 'pulse', label: 'Pulse', icon: TrendingUp },
@@ -732,10 +748,10 @@ export default function EmployeeEngagement() {
         </div>
 
         {/* Tab Content */}
-        {tab === 'pulse' && <PulseTab />}
-        {tab === 'recognition' && <RecognitionTab />}
-        {tab === 'leaderboard' && <LeaderboardTab />}
-        {tab === 'enps' && <ENPSTab />}
+        {tab === 'pulse' && <PulseTab trend={pulseTrend} />}
+        {tab === 'recognition' && <RecognitionTab feed={kudosFeed} setFeed={setKudosFeed} />}
+        {tab === 'leaderboard' && <LeaderboardTab data={leaderboard} />}
+        {tab === 'enps' && <ENPSTab data={enpsData} />}
         {tab === 'mood' && <MoodTab />}
       </div>
     </div>

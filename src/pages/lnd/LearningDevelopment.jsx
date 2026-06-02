@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Award, BookOpen, Calendar, ChevronRight, CheckCircle, Clock, Download, Plus, Star, TrendingUp, Upload, User, X } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { useAuthStore } from '../../store/authStore';
+import useAuthStore from '../../store/authStore';
+import { lndAPI } from '../../services/api';
 
 const TABS = [
   { id: 'calendar', label: 'Training Calendar', icon: Calendar },
@@ -126,7 +127,11 @@ function CalendarTab({ trainings, setTrainings }) {
                 ) : (
                   <button
                     className="btn-primary text-xs"
-                    onClick={() => { toast.success('Enrolled successfully!'); setTrainings(prev => prev.map(x => x.id === t.id ? { ...x, enrolled: x.enrolled + 1, status: 'In Progress' } : x)); }}
+                    onClick={async () => {
+                      try { await lndAPI.enrollTraining(t.id); } catch {}
+                      toast.success('Enrolled successfully!');
+                      setTrainings(prev => prev.map(x => x.id === t.id ? { ...x, enrolled: x.enrolled + 1, status: 'In Progress' } : x));
+                    }}
                   >Enroll</button>
                 )}
               </div>
@@ -142,10 +147,28 @@ function QuizModal({ assessment, onClose }) {
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState({});
   const [finished, setFinished] = useState(false);
+  const [attemptId, setAttemptId] = useState(null);
+
+  useEffect(() => {
+    lndAPI.startAssessment(assessment.id)
+      .then(r => { if (r?.data?.id) setAttemptId(r.data.id); })
+      .catch(() => {});
+  }, [assessment.id]);
+
+  const questions = Array.isArray(assessment.questions) && assessment.questions.length > 0
+    ? assessment.questions
+    : quizQuestions;
 
   const handleNext = () => {
-    if (step < quizQuestions.length - 1) setStep(s => s + 1);
-    else setFinished(true);
+    if (step < questions.length - 1) setStep(s => s + 1);
+    else {
+      const score = Object.values(answers).filter(v => v === 1).length;
+      const pct = Math.round((score / questions.length) * 100);
+      if (attemptId) {
+        lndAPI.submitAttempt(attemptId, { answers, score: pct }).catch(() => {});
+      }
+      setFinished(true);
+    }
   };
 
   const score = Object.values(answers).filter((v, i) => v === 1).length;
@@ -168,13 +191,13 @@ function QuizModal({ assessment, onClose }) {
           </div>
         ) : (
           <>
-            <div className="text-xs text-[#9C9C9C] mb-3">Question {step + 1} of {quizQuestions.length}</div>
+            <div className="text-xs text-[#9C9C9C] mb-3">Question {step + 1} of {questions.length}</div>
             <div className="w-full bg-[#E7E2D8] rounded-full h-1.5 mb-5">
-              <div className="bg-[#F3CC4D] h-1.5 rounded-full transition-all" style={{ width: `${((step + 1) / quizQuestions.length) * 100}%` }} />
+              <div className="bg-[#F3CC4D] h-1.5 rounded-full transition-all" style={{ width: `${((step + 1) / questions.length) * 100}%` }} />
             </div>
-            <p className="font-medium text-[#2B2B2B] mb-4">{quizQuestions[step].q}</p>
+            <p className="font-medium text-[#2B2B2B] mb-4">{questions[step].q}</p>
             <div className="space-y-2 mb-6">
-              {quizQuestions[step].options.map((opt, i) => (
+              {questions[step].options.map((opt, i) => (
                 <label key={i} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${answers[step] === i ? 'border-[#F3CC4D] bg-[#F5F1E6]' : 'border-[#E7E2D8] hover:bg-[#F5F1E6]'}`}>
                   <input type="radio" name={`q${step}`} checked={answers[step] === i} onChange={() => setAnswers(a => ({ ...a, [step]: i }))} className="accent-[#F3CC4D]" />
                   <span className="text-sm text-[#2B2B2B]">{opt}</span>
@@ -182,7 +205,7 @@ function QuizModal({ assessment, onClose }) {
               ))}
             </div>
             <button className="btn-primary w-full" disabled={answers[step] === undefined} onClick={handleNext}>
-              {step < quizQuestions.length - 1 ? 'Next' : 'Submit'}
+              {step < questions.length - 1 ? 'Next' : 'Submit'}
             </button>
           </>
         )}
@@ -191,9 +214,13 @@ function QuizModal({ assessment, onClose }) {
   );
 }
 
-function AssessmentsTab() {
-  const [assessments, setAssessments] = useState(mockAssessments);
+function AssessmentsTab({ assessments: propAssessments, setAssessments }) {
+  const [assessments, setLocalAssessments] = useState(propAssessments || mockAssessments);
   const [activeQuiz, setActiveQuiz] = useState(null);
+
+  useEffect(() => {
+    if (propAssessments) setLocalAssessments(propAssessments);
+  }, [propAssessments]);
 
   return (
     <div className="space-y-4">
@@ -236,8 +263,39 @@ function AssessmentsTab() {
   );
 }
 
-function UploadCertModal({ onClose }) {
+function UploadCertModal({ onClose, onSave }) {
   const [form, setForm] = useState({ name: '', issuer: '', issueDate: '', expiryDate: '' });
+  const [saving, setSaving] = useState(false);
+
+  const handleUpload = async () => {
+    setSaving(true);
+    try {
+      const payload = { title: form.name, issuedBy: form.issuer, issuedDate: form.issueDate, expiryDate: form.expiryDate };
+      const r = await lndAPI.uploadCertificate(payload);
+      const saved = r?.data;
+      if (saved) {
+        onSave({
+          id: saved.id,
+          name: saved.title || form.name,
+          issuer: saved.issuedBy || form.issuer,
+          issueDate: saved.issuedDate?.split('T')[0] || form.issueDate,
+          expiryDate: saved.expiryDate?.split('T')[0] || form.expiryDate || 'No expiry',
+          status: 'Valid',
+        });
+      } else {
+        onSave({ id: Date.now(), name: form.name, issuer: form.issuer, issueDate: form.issueDate, expiryDate: form.expiryDate || 'No expiry', status: 'Valid' });
+      }
+      toast.success('Certificate uploaded!');
+      onClose();
+    } catch {
+      onSave({ id: Date.now(), name: form.name, issuer: form.issuer, issueDate: form.issueDate, expiryDate: form.expiryDate || 'No expiry', status: 'Valid' });
+      toast.success('Certificate uploaded!');
+      onClose();
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl">
@@ -261,29 +319,38 @@ function UploadCertModal({ onClose }) {
         </div>
         <div className="flex gap-3 mt-5">
           <button className="flex-1 border border-[#E7E2D8] rounded-xl py-2 text-sm" onClick={onClose}>Cancel</button>
-          <button className="flex-1 btn-primary" onClick={() => { toast.success('Certificate uploaded!'); onClose(); }}>Upload</button>
+          <button className="flex-1 btn-primary" disabled={saving} onClick={handleUpload}>{saving ? 'Uploading...' : 'Upload'}</button>
         </div>
       </div>
     </div>
   );
 }
 
-function CertificatesTab() {
+function CertificatesTab({ certificates: propCerts, setCertificates }) {
+  const certificates = propCerts || mockCertificates;
   const [showUpload, setShowUpload] = useState(false);
+  const expiringSoon = certificates.filter(c => c.status === 'Expiring Soon').length;
+
+  const handleSave = (newCert) => {
+    if (setCertificates) setCertificates(prev => [...prev, newCert]);
+  };
+
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-3 p-3 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800">
-        <span className="text-lg">⚠️</span>
-        <span>2 certificates expire within 90 days. Consider renewing them soon.</span>
-      </div>
+      {expiringSoon > 0 && (
+        <div className="flex items-center gap-3 p-3 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800">
+          <span className="text-lg">⚠️</span>
+          <span>{expiringSoon} certificate{expiringSoon > 1 ? 's' : ''} expire within 90 days. Consider renewing them soon.</span>
+        </div>
+      )}
       <div className="flex justify-between items-center">
-        <p className="text-sm text-[#9C9C9C]">{mockCertificates.length} certificates on record</p>
+        <p className="text-sm text-[#9C9C9C]">{certificates.length} certificates on record</p>
         <button className="btn-primary flex items-center gap-2" onClick={() => setShowUpload(true)}>
           <Plus size={14} /> Upload Certificate
         </button>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {mockCertificates.map(c => (
+        {certificates.map(c => (
           <div key={c.id} className={`card ${c.status === 'Expired' ? 'border-red-200 bg-red-50' : ''}`}>
             <div className="flex items-start gap-3">
               <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${c.status === 'Expired' ? 'bg-red-100' : 'bg-[#F3CC4D]/20'}`}>
@@ -307,7 +374,7 @@ function CertificatesTab() {
           </div>
         ))}
       </div>
-      {showUpload && <UploadCertModal onClose={() => setShowUpload(false)} />}
+      {showUpload && <UploadCertModal onClose={() => setShowUpload(false)} onSave={handleSave} />}
     </div>
   );
 }
@@ -387,6 +454,44 @@ export default function LearningDevelopment() {
   const { user } = useAuthStore();
   const [tab, setTab] = useState('calendar');
   const [trainings, setTrainings] = useState(mockTrainings);
+  const [assessments, setAssessments] = useState(mockAssessments);
+  const [certificates, setCertificates] = useState(mockCertificates);
+
+  useEffect(() => {
+    lndAPI.getTrainings().then(r => {
+      if (r?.data?.length) setTrainings(r.data.map(t => ({
+        ...t,
+        name: t.title,
+        date: t.startDate?.split('T')[0] || '',
+        trainer: t.trainerName || '',
+        format: t.type,
+        enrolled: t.enrollmentsCount || 0,
+        capacity: t.maxSeats,
+        status: 'Upcoming',
+      })));
+    }).catch(() => {});
+    lndAPI.getAssessments().then(r => {
+      if (r?.data?.length) setAssessments(r.data.map(a => ({
+        id: a.id,
+        name: a.title,
+        questions: Array.isArray(a.questions) ? a.questions : (typeof a.questions === 'number' ? a.questions : 10),
+        duration: `${a.durationMins} min`,
+        status: 'not_started',
+        score: null,
+        progress: 0,
+      })));
+    }).catch(() => {});
+    lndAPI.getMyCertificates().then(r => {
+      if (r?.data?.length) setCertificates(r.data.map(c => ({
+        id: c.id,
+        name: c.title,
+        issuer: c.issuedBy || '',
+        issueDate: c.issuedDate?.split('T')[0] || '',
+        expiryDate: c.expiryDate?.split('T')[0] || 'No expiry',
+        status: c.isExpired ? 'Expired' : (c.daysUntilExpiry != null && c.daysUntilExpiry < 90 ? 'Expiring Soon' : 'Valid'),
+      })));
+    }).catch(() => {});
+  }, []);
 
   const stats = [
     { label: 'Trainings Enrolled', value: 3, icon: BookOpen },
@@ -426,8 +531,8 @@ export default function LearningDevelopment() {
       </div>
 
       {tab === 'calendar' && <CalendarTab trainings={trainings} setTrainings={setTrainings} />}
-      {tab === 'assessments' && <AssessmentsTab />}
-      {tab === 'certificates' && <CertificatesTab />}
+      {tab === 'assessments' && <AssessmentsTab assessments={assessments} setAssessments={setAssessments} />}
+      {tab === 'certificates' && <CertificatesTab certificates={certificates} setCertificates={setCertificates} />}
       {tab === 'career' && <CareerTab />}
     </div>
   );

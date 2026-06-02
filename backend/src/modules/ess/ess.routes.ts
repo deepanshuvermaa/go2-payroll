@@ -61,4 +61,26 @@ router.post('/requests', authenticate, asyncHandler(async (req: any, res: any) =
   sendSuccess(res, result, 'Request raised', 201);
 }));
 
+// Standup logs (simple in-memory/DB via Notification model reuse as workaround)
+// Store standup notes as a JSON in a notification record keyed by employee+date
+router.get('/standup', authenticate, asyncHandler(async (req: any, res: any) => {
+  const prisma = (await import('../../config/database')).default;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const logs = await prisma.notification.findMany({
+    where: { userId: req.user.userId, title: 'STANDUP_LOG', createdAt: { gte: today } },
+    orderBy: { createdAt: 'desc' },
+    take: 20,
+  });
+  sendSuccess(res, logs.map(l => ({ employeeId: req.user.employeeId, note: l.message, date: l.createdAt })));
+}));
+
+router.post('/standup', authenticate, asyncHandler(async (req: any, res: any) => {
+  const prisma = (await import('../../config/database')).default;
+  const { note } = req.body;
+  const log = await prisma.notification.create({
+    data: { userId: req.user.userId, type: 'IN_APP', title: 'STANDUP_LOG', message: note || '' },
+  });
+  sendSuccess(res, { employeeId: req.user.employeeId, note: log.message, date: log.createdAt }, 'Standup logged', 201);
+}));
+
 export default router;

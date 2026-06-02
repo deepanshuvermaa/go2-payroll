@@ -59,14 +59,18 @@ function Avatar({ name, idx }) {
 function InterviewPanel({ candidate, onClose }) {
   const [form, setForm] = useState({ type: 'Technical', date: '', time: '', interviewer: '' });
   const [loading, setLoading] = useState(false);
+  const [scheduledInterviewId, setScheduledInterviewId] = useState(null);
+  const [feedback, setFeedback] = useState({ rating: 0, notes: '' });
+  const [feedbackLoading, setFeedbackLoading] = useState(false);
 
   async function handleSubmit(e) {
     e.preventDefault();
     setLoading(true);
     try {
-      await recruitmentAPI.scheduleInterview({ candidateId: candidate.id, ...form });
+      const res = await recruitmentAPI.scheduleInterview({ candidateId: candidate.id, ...form });
+      const interviewId = res?.data?.id || res?.id || null;
+      setScheduledInterviewId(interviewId);
       toast.success(`Interview scheduled for ${candidate.name}`);
-      onClose();
     } catch {
       toast.error('Failed to schedule. Please try again.');
     } finally {
@@ -74,11 +78,36 @@ function InterviewPanel({ candidate, onClose }) {
     }
   }
 
+  async function handleFeedbackSubmit(e) {
+    e.preventDefault();
+    if (!feedback.rating) {
+      toast.error('Please provide a star rating');
+      return;
+    }
+    setFeedbackLoading(true);
+    try {
+      if (scheduledInterviewId) {
+        await recruitmentAPI.submitFeedback(scheduledInterviewId, {
+          rating: feedback.rating,
+          notes: feedback.notes,
+        });
+      }
+      toast.success('Feedback submitted');
+      onClose();
+    } catch {
+      toast.error('Failed to submit feedback. Please try again.');
+    } finally {
+      setFeedbackLoading(false);
+    }
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
       <div className="bg-white rounded-2xl border border-[#E7E2D8] shadow-xl w-full max-w-md p-6">
         <div className="flex items-center justify-between mb-5">
-          <h3 className="text-base font-semibold text-[#2B2B2B]">Schedule Interview</h3>
+          <h3 className="text-base font-semibold text-[#2B2B2B]">
+            {scheduledInterviewId ? 'Submit Feedback' : 'Schedule Interview'}
+          </h3>
           <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-lg transition-colors">
             <X size={16} className="text-[#9C9C9C]" />
           </button>
@@ -90,51 +119,94 @@ function InterviewPanel({ candidate, onClose }) {
             <p className="text-xs text-[#9C9C9C]">{candidate.role}</p>
           </div>
         </div>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-xs font-medium text-[#2B2B2B] mb-1">Interview Type</label>
-            <select
-              className="w-full border border-[#E7E2D8] rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#F3CC4D]"
-              value={form.type}
-              onChange={e => setForm(f => ({ ...f, type: e.target.value }))}
-            >
-              {['Technical', 'HR', 'Final'].map(t => <option key={t}>{t}</option>)}
-            </select>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
+
+        {/* Schedule form — shown before interview is scheduled */}
+        {!scheduledInterviewId && (
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-xs font-medium text-[#2B2B2B] mb-1">Date</label>
-              <input
-                type="date" required
-                className="w-full border border-[#E7E2D8] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#F3CC4D]"
-                value={form.date}
-                onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
-              />
+              <label className="block text-xs font-medium text-[#2B2B2B] mb-1">Interview Type</label>
+              <select
+                className="w-full border border-[#E7E2D8] rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#F3CC4D]"
+                value={form.type}
+                onChange={e => setForm(f => ({ ...f, type: e.target.value }))}
+              >
+                {['Technical', 'HR', 'Final'].map(t => <option key={t}>{t}</option>)}
+              </select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-[#2B2B2B] mb-1">Date</label>
+                <input
+                  type="date" required
+                  className="w-full border border-[#E7E2D8] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#F3CC4D]"
+                  value={form.date}
+                  onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-[#2B2B2B] mb-1">Time</label>
+                <input
+                  type="time" required
+                  className="w-full border border-[#E7E2D8] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#F3CC4D]"
+                  value={form.time}
+                  onChange={e => setForm(f => ({ ...f, time: e.target.value }))}
+                />
+              </div>
             </div>
             <div>
-              <label className="block text-xs font-medium text-[#2B2B2B] mb-1">Time</label>
+              <label className="block text-xs font-medium text-[#2B2B2B] mb-1">Interviewer</label>
               <input
-                type="time" required
+                type="text" required placeholder="Enter interviewer name"
                 className="w-full border border-[#E7E2D8] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#F3CC4D]"
-                value={form.time}
-                onChange={e => setForm(f => ({ ...f, time: e.target.value }))}
+                value={form.interviewer}
+                onChange={e => setForm(f => ({ ...f, interviewer: e.target.value }))}
               />
             </div>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-[#2B2B2B] mb-1">Interviewer</label>
-            <input
-              type="text" required placeholder="Enter interviewer name"
-              className="w-full border border-[#E7E2D8] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#F3CC4D]"
-              value={form.interviewer}
-              onChange={e => setForm(f => ({ ...f, interviewer: e.target.value }))}
-            />
-          </div>
-          <div className="flex gap-3 pt-1">
-            <button type="button" onClick={onClose} className="flex-1 border border-[#E7E2D8] rounded-xl px-4 py-2.5 text-sm font-medium hover:bg-gray-50 transition-colors">Cancel</button>
-            <button type="submit" disabled={loading} className="flex-1 btn-primary">{loading ? 'Scheduling…' : 'Schedule'}</button>
-          </div>
-        </form>
+            <div className="flex gap-3 pt-1">
+              <button type="button" onClick={onClose} className="flex-1 border border-[#E7E2D8] rounded-xl px-4 py-2.5 text-sm font-medium hover:bg-gray-50 transition-colors">Cancel</button>
+              <button type="submit" disabled={loading} className="flex-1 btn-primary">{loading ? 'Scheduling…' : 'Schedule'}</button>
+            </div>
+          </form>
+        )}
+
+        {/* Feedback form — shown after interview is successfully scheduled */}
+        {scheduledInterviewId && (
+          <form onSubmit={handleFeedbackSubmit} className="space-y-4">
+            <div>
+              <label className="block text-xs font-medium text-[#2B2B2B] mb-2">Rating</label>
+              <div className="flex gap-2">
+                {[1, 2, 3, 4, 5].map(star => (
+                  <button
+                    key={star}
+                    type="button"
+                    onClick={() => setFeedback(f => ({ ...f, rating: star }))}
+                    className={`w-9 h-9 rounded-full text-sm font-bold transition-colors ${
+                      feedback.rating >= star
+                        ? 'bg-[#F3CC4D] text-[#2B2B2B]'
+                        : 'bg-[#F5F1E6] text-[#9C9C9C] border border-[#E7E2D8]'
+                    }`}
+                  >
+                    {star}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-[#2B2B2B] mb-1">Notes</label>
+              <textarea
+                rows={3}
+                placeholder="Interview notes, observations…"
+                className="w-full border border-[#E7E2D8] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#F3CC4D] resize-none"
+                value={feedback.notes}
+                onChange={e => setFeedback(f => ({ ...f, notes: e.target.value }))}
+              />
+            </div>
+            <div className="flex gap-3 pt-1">
+              <button type="button" onClick={onClose} className="flex-1 border border-[#E7E2D8] rounded-xl px-4 py-2.5 text-sm font-medium hover:bg-gray-50 transition-colors">Skip</button>
+              <button type="submit" disabled={feedbackLoading} className="flex-1 btn-primary">{feedbackLoading ? 'Submitting…' : 'Submit Feedback'}</button>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   );
@@ -236,13 +308,28 @@ function PostJobModal({ onClose }) {
 }
 
 // ── Candidate Card ─────────────────────────────────────────────────────────────
-function CandidateCard({ candidate, idx, onMove, onSchedule, canMove }) {
+function CandidateCard({ candidate, idx, onMove, onSchedule, canMove, onConvert }) {
   const [rejecting, setRejecting] = useState(false);
+  const [converting, setConverting] = useState(false);
+  const isJoined = candidate.stage === 'Joined';
 
   function handleReject() {
     setRejecting(true);
     setTimeout(() => setRejecting(false), 1000);
     toast('Candidate marked as rejected', { icon: '🚫' });
+  }
+
+  async function handleConvert() {
+    setConverting(true);
+    try {
+      await recruitmentAPI.convert(candidate.id);
+      toast.success(`${candidate.name} converted to employee!`);
+      if (onConvert) onConvert(candidate.id);
+    } catch {
+      toast.error('Conversion failed. Please try again.');
+    } finally {
+      setConverting(false);
+    }
   }
 
   return (
@@ -266,14 +353,16 @@ function CandidateCard({ candidate, idx, onMove, onSchedule, canMove }) {
         <Clock size={11} />
         <span>{daysAgo(candidate.date)}</span>
       </div>
-      <div className="flex items-center gap-1.5">
-        <button
-          onClick={() => onSchedule(candidate)}
-          className="flex-1 text-[11px] bg-[#F5F1E6] hover:bg-[#ede8dc] text-[#2B2B2B] rounded-lg px-2 py-1.5 font-medium transition-colors"
-          title="Schedule Interview"
-        >
-          Interview
-        </button>
+      <div className="flex items-center gap-1.5 flex-wrap">
+        {!isJoined && (
+          <button
+            onClick={() => onSchedule(candidate)}
+            className="flex-1 text-[11px] bg-[#F5F1E6] hover:bg-[#ede8dc] text-[#2B2B2B] rounded-lg px-2 py-1.5 font-medium transition-colors"
+            title="Schedule Interview"
+          >
+            Interview
+          </button>
+        )}
         {canMove && (
           <button
             onClick={() => onMove(candidate.id)}
@@ -283,21 +372,33 @@ function CandidateCard({ candidate, idx, onMove, onSchedule, canMove }) {
             Move <ChevronRight size={11} />
           </button>
         )}
-        <button
-          onClick={handleReject}
-          disabled={rejecting}
-          className="text-[11px] bg-red-50 hover:bg-red-100 text-red-600 rounded-lg px-2 py-1.5 font-medium transition-colors"
-          title="Reject"
-        >
-          Reject
-        </button>
+        {isJoined && (
+          <button
+            onClick={handleConvert}
+            disabled={converting}
+            className="flex-1 text-[11px] bg-green-600 hover:bg-green-700 text-white rounded-lg px-2 py-1.5 font-medium transition-colors"
+            title="Convert to Employee"
+          >
+            {converting ? 'Converting…' : 'Convert to Employee'}
+          </button>
+        )}
+        {!isJoined && (
+          <button
+            onClick={handleReject}
+            disabled={rejecting}
+            className="text-[11px] bg-red-50 hover:bg-red-100 text-red-600 rounded-lg px-2 py-1.5 font-medium transition-colors"
+            title="Reject"
+          >
+            Reject
+          </button>
+        )}
       </div>
     </div>
   );
 }
 
 // ── Kanban Column ──────────────────────────────────────────────────────────────
-function KanbanColumn({ stage, candidates, onMove, onSchedule }) {
+function KanbanColumn({ stage, candidates, onMove, onSchedule, onConvert }) {
   const colors = STAGE_COLORS[stage];
   const stageIdx = STAGES.indexOf(stage);
   const canMove = stageIdx < STAGES.length - 1;
@@ -324,6 +425,7 @@ function KanbanColumn({ stage, candidates, onMove, onSchedule }) {
             onMove={onMove}
             onSchedule={onSchedule}
             canMove={canMove}
+            onConvert={onConvert}
           />
         ))}
       </div>
@@ -406,6 +508,13 @@ export default function RecruitmentPipeline() {
     }
   }
 
+  function handleConvert(candidateId) {
+    // Mark candidate as converted in local state
+    setCandidates(prev =>
+      prev.map(c => c.id === candidateId ? { ...c, converted: true } : c)
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#F5F1E6] p-6">
       {/* Header */}
@@ -444,6 +553,7 @@ export default function RecruitmentPipeline() {
             candidates={candidates.filter(c => c.stage === stage)}
             onMove={handleMove}
             onSchedule={setInterviewTarget}
+            onConvert={handleConvert}
           />
         ))}
       </div>

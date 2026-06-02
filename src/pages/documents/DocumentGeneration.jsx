@@ -4,7 +4,7 @@ import {
   Download, Send, Eye, Edit, Plus, Search, X, ChevronDown, ChevronUp
 } from "lucide-react";
 import toast from "react-hot-toast";
-import { useAuthStore } from "../../store/authStore";
+import useAuthStore from "../../store/authStore";
 
 const TABS = [
   { id: "generate", label: "Generate" },

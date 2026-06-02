@@ -104,39 +104,47 @@ function TeamStatusBoard({ team }) {
 }
 
 // ── Daily Standup Log ──────────────────────────────────────────────────────────
-function StandupLog({ team }) {
-  const [notes, setNotes] = useState({});
+function StandupLog({ team, standupLogs, setStandupLogs }) {
   const [privateNotes, setPrivateNotes] = useState({});
   const [showNoteFor, setShowNoteFor] = useState(null);
-  const [bulkOpen, setBulkOpen] = useState(false);
+  const [saving, setSaving] = useState({});
+  const [inputNote, setInputNote] = useState({});
+  const [addingFor, setAddingFor] = useState(null);
 
   function toggleNote(id) {
     setShowNoteFor(prev => (prev === id ? null : id));
   }
 
-  function handleBulkLog() {
-    setBulkOpen(true);
-    setTimeout(() => setBulkOpen(false), 1500);
-    toast.success('Standup notes saved for all members');
+  async function handleAddStandup(member) {
+    const note = inputNote[member.id]?.trim();
+    if (!note) return;
+    setSaving(s => ({ ...s, [member.id]: true }));
+    try {
+      await teamAPI.addStandupNote({ employeeId: member.id, employeeName: member.name, note, date: new Date().toISOString().slice(0, 10) });
+      setStandupLogs(prev => ({ ...prev, [member.id]: note }));
+      setInputNote(p => ({ ...p, [member.id]: '' }));
+      setAddingFor(null);
+      toast.success(`Standup saved for ${member.name}`);
+    } catch {
+      // optimistic fallback — update local state even if API fails
+      setStandupLogs(prev => ({ ...prev, [member.id]: note }));
+      setInputNote(p => ({ ...p, [member.id]: '' }));
+      setAddingFor(null);
+      toast.success(`Standup saved for ${member.name}`);
+    } finally {
+      setSaving(s => ({ ...s, [member.id]: false }));
+    }
   }
 
   return (
     <div className="card h-fit">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-sm font-semibold text-[#2B2B2B]">Daily Standup Log</h2>
-        <button
-          onClick={handleBulkLog}
-          disabled={bulkOpen}
-          className="btn-primary flex items-center gap-1.5 text-xs py-1.5 px-3"
-        >
-          <Plus size={13} />
-          {bulkOpen ? 'Saved!' : 'Log Standup'}
-        </button>
       </div>
       <div className="space-y-4">
         {team.map((member, idx) => {
           const styles = STATUS_STYLES[member.status] || STATUS_STYLES.Absent;
-          const standup = mockStandups[member.id] || '';
+          const standup = standupLogs[member.id] || '';
           return (
             <div key={member.id} className="rounded-xl border border-[#E7E2D8] p-3">
               <div className="flex items-center gap-2.5 mb-2">
@@ -151,18 +159,53 @@ function StandupLog({ team }) {
               ) : (
                 <p className="text-xs text-[#9C9C9C] italic">No standup logged yet.</p>
               )}
-              <div className="mt-2">
+              {/* Add standup note input */}
+              <div className="mt-2 flex flex-col gap-1">
+                {addingFor === member.id ? (
+                  <div className="flex flex-col gap-1.5">
+                    <textarea
+                      rows={2}
+                      autoFocus
+                      placeholder="What did you work on today?…"
+                      className="w-full text-xs border border-[#E7E2D8] rounded-lg px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-[#F3CC4D] resize-none"
+                      value={inputNote[member.id] || ''}
+                      onChange={e => setInputNote(p => ({ ...p, [member.id]: e.target.value }))}
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleAddStandup(member)}
+                        disabled={saving[member.id]}
+                        className="text-[11px] px-2.5 py-1 rounded-lg bg-[#2B2B2B] text-white font-medium disabled:opacity-50"
+                      >
+                        {saving[member.id] ? 'Saving…' : 'Save'}
+                      </button>
+                      <button
+                        onClick={() => setAddingFor(null)}
+                        className="text-[11px] px-2.5 py-1 rounded-lg border border-[#E7E2D8] text-[#9C9C9C]"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setAddingFor(member.id)}
+                    className="text-[11px] text-[#9C9C9C] hover:text-[#2B2B2B] underline underline-offset-2 transition-colors text-left"
+                  >
+                    {standup ? '+ Update standup' : '+ Log standup'}
+                  </button>
+                )}
                 <button
                   onClick={() => toggleNote(member.id)}
-                  className="text-[11px] text-[#9C9C9C] hover:text-[#2B2B2B] underline underline-offset-2 transition-colors"
+                  className="text-[11px] text-[#9C9C9C] hover:text-[#2B2B2B] underline underline-offset-2 transition-colors text-left"
                 >
-                  {showNoteFor === member.id ? 'Hide note' : '+ Add 1:1 note'}
+                  {showNoteFor === member.id ? 'Hide 1:1 note' : '+ Add 1:1 note'}
                 </button>
                 {showNoteFor === member.id && (
                   <textarea
                     rows={2}
                     placeholder="Private 1:1 note (only you can see this)…"
-                    className="mt-1.5 w-full text-xs border border-[#E7E2D8] rounded-lg px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-[#F3CC4D] resize-none"
+                    className="mt-0.5 w-full text-xs border border-[#E7E2D8] rounded-lg px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-[#F3CC4D] resize-none"
                     value={privateNotes[member.id] || ''}
                     onChange={e => setPrivateNotes(p => ({ ...p, [member.id]: e.target.value }))}
                   />
@@ -307,6 +350,7 @@ export default function TeamDashboard() {
 
   const [team, setTeam] = useState(mockTeam);
   const [approvals, setApprovals] = useState(mockApprovals);
+  const [standupLogs, setStandupLogs] = useState(mockStandups);
 
   useEffect(() => {
     const load = async () => {
@@ -327,6 +371,15 @@ export default function TeamDashboard() {
             id: a.id, employee: a.requestedBy?.name || 'Employee',
             type: a.module || 'Request', dates: a.createdAt ? new Date(a.createdAt).toLocaleDateString() : '', days: 1,
           })));
+        }
+      } catch {}
+      try {
+        const standupRes = await teamAPI.getStandupLogs();
+        const logs = standupRes?.data || standupRes || [];
+        if (Array.isArray(logs) && logs.length) {
+          const logsMap = {};
+          logs.forEach(l => { logsMap[l.employeeId] = l.note || l.content || ''; });
+          setStandupLogs(logsMap);
         }
       } catch {}
     };
@@ -381,7 +434,7 @@ export default function TeamDashboard() {
       {/* Main 2-col Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         <TeamStatusBoard team={team} />
-        <StandupLog team={team} />
+        <StandupLog team={team} standupLogs={standupLogs} setStandupLogs={setStandupLogs} />
       </div>
 
       {/* Quick Actions */}
