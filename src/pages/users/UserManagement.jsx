@@ -48,16 +48,27 @@ const UserManagement = () => {
     }
   };
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (!form.name || !form.email) { toast.error('Name and email required'); return; }
-    if (users.find(u => u.email === form.email)) { toast.error('Email already exists'); return; }
-    const newUser = { id: `user_${Date.now()}`, ...form, status: 'active', createdAt: new Date().toISOString() };
-    const updated = [...users, newUser];
-    payrollDataStore.setData('go2_users', updated);
-    setUsers(updated);
-    setForm({ name: '', email: '', role: 'employee', password: '' });
-    setShowAdd(false);
-    toast.success(`User ${form.name} added with role: ${form.role}`);
+    if (!form.password || form.password.length < 6) { toast.error('Password must be at least 6 characters'); return; }
+
+    try {
+      // Create user in real backend
+      const { authAPI } = await import('../../services/api');
+      await authAPI.register({
+        email: form.email,
+        password: form.password,
+        firstName: form.name.split(' ')[0],
+        lastName: form.name.split(' ').slice(1).join(' ') || '',
+        role: form.role === 'admin' ? 'ORG_ADMIN' : form.role === 'hr_manager' ? 'HR_MANAGER' : form.role === 'finance' ? 'FINANCE_MANAGER' : form.role === 'manager' ? 'MANAGER' : 'EMPLOYEE',
+      });
+      toast.success(`User ${form.name} created! They can now login with ${form.email}`);
+      setForm({ name: '', email: '', role: 'employee', password: '' });
+      setShowAdd(false);
+      loadUsers();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || err?.message || 'Failed to create user');
+    }
   };
 
   const toggleStatus = (userId) => {
