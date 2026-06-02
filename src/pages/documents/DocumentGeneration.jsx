@@ -58,39 +58,202 @@ function calcTenure(joining) {
   return years > 0 ? `${years}y ${rem}m` : `${rem}m`;
 }
 
-function PreviewModal({ open, onClose, docType, employee, fields, letterDate }) {
+function PreviewModal({ open, onClose, docType, employee, fields, letterDate, orgName = 'Go2 Technologies Pvt. Ltd.' }) {
   if (!open) return null;
-  const today = letterDate || new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "long", year: "numeric" });
-  const emp = employee || { name: "—", designation: "—", department: "—", joining: "—" };
+  const today = letterDate || new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' });
+  const emp = employee || { name: '—', designation: '—', department: '—', joining: '—', salary: 0 };
+  const docMeta = DOC_TYPES.find(d => d.id === docType);
 
-  const bodyMap = {
-    offer: `We are pleased to offer you the position of ${emp.designation} in the ${emp.department} department.\n\nCTC: ₹${fields?.ctc || "—"} per annum\nJoining Date: ${fields?.joiningDate || "—"}\nReporting To: ${fields?.reportingTo || "—"}`,
-    appointment: `This is to confirm your appointment as ${emp.designation} in the ${emp.department} department.\n\nConfirmation Date: ${fields?.confirmDate || "—"}\nEmployment Type: ${fields?.empType || "—"}`,
-    experience: `This is to certify that ${emp.name} was employed with us as ${emp.designation} in the ${emp.department} department.\n\nLast Working Day: ${fields?.lastDay || "—"}\nTenure: ${fields?.tenure || calcTenure(emp.joining)}\nReason: ${fields?.reason || "—"}`,
-    salary: `This is to certify that ${emp.name} is employed with us as ${emp.designation} drawing a monthly salary of ₹${emp.salary?.toLocaleString() || "—"}.\n\nPurpose: ${fields?.purpose || "—"}`,
-    form16: `This is to certify that TDS has been deducted for the Financial Year ${fields?.fy || "—"} for ${emp.name} as per Income Tax Act.`,
-    noc: `This is to certify that we have no objection to ${emp.name} for ${fields?.purposeNoc || "—"}, Destination: ${fields?.destination || "—"}.`,
+  const getBody = () => {
+    switch (docType) {
+      case 'offer': return (
+        <div className="space-y-4 text-sm leading-relaxed text-gray-700">
+          <p>Dear <strong>{emp.name}</strong>,</p>
+          <p>We are pleased to offer you the position of <strong>{emp.designation}</strong> in our <strong>{emp.department}</strong> department at <strong>{orgName}</strong>.</p>
+          <p>After careful consideration of your profile and discussions with our team, we are confident that you will be a valuable addition to our organization.</p>
+          <table className="w-full border border-gray-200 rounded-lg text-xs mt-4">
+            <tbody>
+              {[
+                ['Position', emp.designation],
+                ['Department', emp.department],
+                ['Annual CTC', fields?.ctc ? `₹${Number(fields.ctc).toLocaleString('en-IN')} per annum` : '—'],
+                ['Joining Date', fields?.joiningDate || '—'],
+                ['Reporting To', fields?.reportingTo || '—'],
+                ['Employment Type', 'Full-time, Permanent'],
+                ['Location', 'Mumbai, Maharashtra'],
+              ].map(([k, v]) => (
+                <tr key={k} className="border-b border-gray-100">
+                  <td className="px-3 py-2 font-medium text-gray-600 bg-gray-50 w-40">{k}</td>
+                  <td className="px-3 py-2">{v}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p>This offer is contingent upon successful completion of our standard background verification process. Please confirm your acceptance by signing and returning this letter within <strong>7 days</strong> of receipt.</p>
+          <p>We look forward to welcoming you to our team.</p>
+        </div>
+      );
+      case 'appointment': return (
+        <div className="space-y-4 text-sm leading-relaxed text-gray-700">
+          <p>Dear <strong>{emp.name}</strong>,</p>
+          <p>With reference to your application and subsequent interviews, we are pleased to formally appoint you as <strong>{emp.designation}</strong> in the <strong>{emp.department}</strong> department of <strong>{orgName}</strong>, effective {fields?.confirmDate || emp.joining || today}.</p>
+          <p>Your employment will be on the following terms and conditions:</p>
+          <ul className="list-disc list-inside space-y-1 text-sm">
+            <li>Employment Type: <strong>{fields?.empType || 'Permanent'}</strong></li>
+            <li>Work Hours: Monday to Friday, 9:00 AM – 6:00 PM (40 hours/week)</li>
+            <li>Probation Period: 6 months from the date of joining</li>
+            <li>Notice Period: 30 days (post-confirmation)</li>
+          </ul>
+          <p>You are required to maintain strict confidentiality regarding company information and abide by all company policies and the Employee Code of Conduct.</p>
+        </div>
+      );
+      case 'experience': return (
+        <div className="space-y-4 text-sm leading-relaxed text-gray-700">
+          <p>To Whomsoever It May Concern,</p>
+          <p>This is to certify that <strong>{emp.name}</strong> was employed with <strong>{orgName}</strong> as <strong>{emp.designation}</strong> in the <strong>{emp.department}</strong> department from <strong>{new Date(emp.joining).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}</strong> to <strong>{fields?.lastDay ? new Date(fields.lastDay).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' }) : today}</strong>.</p>
+          <p>During their tenure of <strong>{fields?.tenure || calcTenure(emp.joining)}</strong>, {emp.name.split(' ')[0]} demonstrated exceptional professionalism, technical competence, and dedication to work. {emp.name.split(' ')[0]} was a reliable team member and consistently met performance expectations.</p>
+          <p>Reason for separation: <strong>{fields?.reason || '—'}</strong></p>
+          <p>We wish {emp.name.split(' ')[0]} the very best in all future endeavours.</p>
+        </div>
+      );
+      case 'salary': return (
+        <div className="space-y-4 text-sm leading-relaxed text-gray-700">
+          <p>To Whomsoever It May Concern,</p>
+          <p>This is to certify that <strong>{emp.name}</strong> is a permanent employee of <strong>{orgName}</strong>, currently working as <strong>{emp.designation}</strong> in the <strong>{emp.department}</strong> department.</p>
+          <table className="w-full border border-gray-200 rounded-lg text-xs mt-3">
+            <tbody>
+              {[
+                ['Employee Name', emp.name],
+                ['Designation', emp.designation],
+                ['Department', emp.department],
+                ['Date of Joining', emp.joining],
+                ['Gross Monthly Salary', `₹${emp.salary?.toLocaleString('en-IN') || '—'}`],
+                ['Annual CTC', `₹${((emp.salary || 0) * 12).toLocaleString('en-IN')}`],
+                ['Purpose', fields?.purpose || 'General'],
+              ].map(([k, v]) => (
+                <tr key={k} className="border-b border-gray-100">
+                  <td className="px-3 py-2 font-medium text-gray-600 bg-gray-50 w-44">{k}</td>
+                  <td className="px-3 py-2">{v}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p>This certificate is issued on request and for the purpose of <strong>{fields?.purpose || 'general reference'}</strong>.</p>
+        </div>
+      );
+      case 'form16': return (
+        <div className="space-y-4 text-sm leading-relaxed text-gray-700">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs font-medium text-blue-700">FORM 16 — Certificate under section 203 of the Income-tax Act, 1961 for tax deducted at source from income chargeable under the head "Salaries"</div>
+          <table className="w-full border border-gray-200 rounded-lg text-xs">
+            <tbody>
+              {[
+                ['Certificate No.', `F16-${Date.now().toString().slice(-6)}`],
+                ['Assessment Year', `${fields?.fy?.split('-')?.[1] || '2026'}-${(parseInt(fields?.fy?.split('-')?.[1] || '2026') + 1).toString().slice(-2)}`],
+                ['Financial Year', fields?.fy || '2025-26'],
+                ['Employee Name', emp.name],
+                ['Designation', emp.designation],
+                ['PAN of Employee', 'XXXXX0000X'],
+                ['Employer Name', orgName],
+                ['TAN of Employer', 'MUMX00000X'],
+              ].map(([k, v]) => (
+                <tr key={k} className="border-b border-gray-100">
+                  <td className="px-3 py-2 font-medium text-gray-600 bg-gray-50 w-44">{k}</td>
+                  <td className="px-3 py-2">{v}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="text-xs text-gray-500">This certificate is computer generated and does not require a physical signature as per Income Tax Rules.</p>
+        </div>
+      );
+      case 'noc': return (
+        <div className="space-y-4 text-sm leading-relaxed text-gray-700">
+          <p>To Whomsoever It May Concern,</p>
+          <p>This is to certify that <strong>{emp.name}</strong>, employed as <strong>{emp.designation}</strong> in the <strong>{emp.department}</strong> department of <strong>{orgName}</strong>, has been granted permission to travel to <strong>{fields?.destination || '—'}</strong>.</p>
+          <p><strong>{orgName}</strong> has no objection to {emp.name.split(' ')[0]} undertaking this travel for the purpose of <strong>{fields?.purposeNoc || '—'}</strong>. This certificate is issued in good faith for the above-mentioned purpose only.</p>
+          <p>This NOC is valid for <strong>90 days</strong> from the date of issue. Kindly contact our HR department for any verification.</p>
+        </div>
+      );
+      default: return <p className="text-gray-500 text-sm">Please select a document type and employee to preview.</p>;
+    }
   };
 
+  const DocIcon = docMeta?.icon || null;
+  const refNum = `${orgName.substring(0, 3).toUpperCase()}/HR/${new Date().getFullYear()}/${String(Math.floor(Math.random() * 9000) + 1000)}`;
+
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between p-4 border-b border-[#E7E2D8]">
-          <h2 className="font-semibold text-[#2B2B2B]">Document Preview</h2>
-          <button onClick={onClose} className="p-1 hover:bg-[#F5F1E6] rounded-lg"><X size={18} /></button>
-        </div>
-        <div className="p-8 font-mono text-sm text-[#2B2B2B] space-y-4">
-          <div className="text-center border-b border-[#E7E2D8] pb-4">
-            <div className="text-xl font-bold tracking-widest">COMPANY NAME</div>
-            <div className="text-[#9C9C9C] text-xs mt-1">123 Corporate Park, Mumbai 400001 | hr@company.com</div>
+    <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+        {/* Modal header */}
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-200 bg-gray-50 flex-shrink-0">
+          <div className="flex items-center gap-2">
+            {docMeta && DocIcon && (
+              <div className={`p-1.5 rounded-lg ${docMeta.color}`}>
+                <DocIcon size={14} />
+              </div>
+            )}
+            <span className="font-semibold text-sm text-gray-800">{docMeta?.title || 'Document'} Preview</span>
           </div>
-          <div className="text-right text-xs text-[#9C9C9C]">Date: {today}</div>
-          <div><span className="font-semibold">To:</span> {emp.name}</div>
-          <div><span className="font-semibold">Subject:</span> {DOC_TYPES.find(d => d.id === docType)?.title}</div>
-          <div className="mt-4 whitespace-pre-line leading-relaxed">{bodyMap[docType] || "—"}</div>
-          <div className="mt-8 pt-4 border-t border-[#E7E2D8]">
-            <div className="font-semibold">HR Manager</div>
-            <div className="text-[#9C9C9C]">Go2-Payroll Inc.</div>
+          <div className="flex items-center gap-2">
+            <button onClick={() => window.print()} className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-[#F3CC4D] rounded-lg font-medium hover:bg-yellow-400 transition">
+              <Download size={12} /> Print / Save PDF
+            </button>
+            <button onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded-lg"><X size={16} className="text-gray-500" /></button>
+          </div>
+        </div>
+
+        {/* Letter paper */}
+        <div className="overflow-y-auto flex-1 p-6 bg-gray-100">
+          <div className="bg-white shadow-md rounded-sm mx-auto" style={{ maxWidth: 640, padding: '40px 48px', minHeight: 800 }}>
+            {/* Letterhead */}
+            <div className="flex items-start justify-between pb-5 mb-5 border-b-2 border-[#2B2B2B]">
+              <div>
+                <div className="text-xl font-black text-[#2B2B2B] tracking-tight">{orgName}</div>
+                <div className="text-xs text-gray-500 mt-0.5">HR &amp; People Operations</div>
+                <div className="text-xs text-gray-400 mt-0.5">123 Corporate Park, BKC, Mumbai 400051 | hr@go2technologies.com | +91 98765 43210</div>
+              </div>
+              <div className="w-14 h-14 rounded-xl bg-[#2B2B2B] flex items-center justify-center flex-shrink-0">
+                <span className="text-[#F3CC4D] font-black text-lg">G2</span>
+              </div>
+            </div>
+
+            {/* Ref and Date */}
+            <div className="flex items-center justify-between mb-6 text-xs text-gray-500">
+              <span>Ref: {refNum}</span>
+              <span>Date: {today}</span>
+            </div>
+
+            {/* Subject */}
+            <div className="mb-6">
+              <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Subject: </span>
+              <span className="text-sm font-semibold text-[#2B2B2B]">{docMeta?.title}</span>
+            </div>
+
+            {/* Body */}
+            {getBody()}
+
+            {/* Signature */}
+            <div className="mt-12 pt-6 border-t border-gray-100">
+              <div className="flex items-end justify-between">
+                <div>
+                  <div className="w-32 border-b border-gray-400 mb-1" />
+                  <div className="text-sm font-semibold text-[#2B2B2B]">Authorized Signatory</div>
+                  <div className="text-xs text-gray-500">HR Manager</div>
+                  <div className="text-xs text-gray-400">{orgName}</div>
+                </div>
+                <div className="text-right">
+                  <div className="inline-block border-2 border-[#F3CC4D] rounded-lg px-4 py-2 text-center">
+                    <div className="text-[10px] text-gray-500 uppercase tracking-wider">Company Seal</div>
+                    <div className="text-xs font-bold text-[#2B2B2B] mt-1">{orgName.substring(0, 3).toUpperCase()}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="mt-8 pt-4 border-t border-gray-100 text-[10px] text-gray-400 text-center">
+              This is a computer-generated document. For verification, contact hr@go2technologies.com
+            </div>
           </div>
         </div>
       </div>
@@ -306,17 +469,45 @@ function GenerateTab() {
   );
 }
 
+function TemplatePreviewModal({ template, onClose }) {
+  if (!template) return null;
+  return (
+    <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-200">
+          <span className="font-semibold text-sm">{template.name}</span>
+          <button onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded-lg"><X size={16} /></button>
+        </div>
+        <div className="p-6 space-y-3">
+          <div className="flex gap-2 text-xs">
+            <span className="px-2 py-1 bg-[#F5F1E6] rounded-full">{template.type}</span>
+            <span className="px-2 py-1 bg-[#F5F1E6] rounded-full">Used {template.uses} times</span>
+            <span className="px-2 py-1 bg-[#F5F1E6] rounded-full">Modified {template.modified}</span>
+          </div>
+          <div className="bg-[#F5F1E6] rounded-xl p-4 text-sm text-gray-700 whitespace-pre-line font-mono leading-relaxed min-h-48">
+            {`Dear {{employee_name}},\n\nThis is to certify that {{employee_name}}, employed as {{designation}} in our {{department}} department, ...\n\n[Rest of ${template.name} content]\n\nRegards,\nHR Manager\n{{company_name}}`}
+          </div>
+          <div className="text-xs text-gray-400">Variables: {"{{employee_name}}"}, {"{{designation}}"}, {"{{department}}"}, {"{{company_name}}"}, {"{{joining_date}}"}, {"{{salary}}"}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function TemplatesTab() {
   const [showForm, setShowForm] = useState(false);
   const [showHints, setShowHints] = useState(false);
   const [tplName, setTplName] = useState("");
   const [tplType, setTplType] = useState("");
   const [tplContent, setTplContent] = useState("");
+  const [editingTemplate, setEditingTemplate] = useState(null);
+  const [previewingTemplate, setPreviewingTemplate] = useState(null);
 
   const handleSave = () => {
     if (!tplName || !tplType) { toast.error("Name and type are required"); return; }
-    toast.success("Template saved successfully");
+    toast.success(editingTemplate ? "Template updated successfully" : "Template saved successfully");
     setShowForm(false);
+    setEditingTemplate(null);
     setTplName("");
     setTplType("");
     setTplContent("");
@@ -326,7 +517,7 @@ function TemplatesTab() {
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h3 className="font-semibold text-[#2B2B2B]">Document Templates</h3>
-        <button onClick={() => setShowForm(s => !s)}
+        <button onClick={() => { setEditingTemplate(null); setTplName(""); setTplType(""); setTplContent(""); setShowForm(s => !s); }}
           className="flex items-center gap-2 px-4 py-2 bg-[#F3CC4D] rounded-lg text-sm font-medium hover:bg-yellow-400 transition">
           <Plus size={15} /> Create New Template
         </button>
@@ -334,7 +525,7 @@ function TemplatesTab() {
 
       {showForm && (
         <div className="bg-white border border-[#E7E2D8] rounded-xl p-5 space-y-4">
-          <h4 className="font-semibold text-sm text-[#2B2B2B]">New Template</h4>
+          <h4 className="font-semibold text-sm text-[#2B2B2B]">{editingTemplate ? `Edit Template: ${editingTemplate.name}` : 'New Template'}</h4>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-medium text-[#9C9C9C] mb-1">Template Name</label>
@@ -375,7 +566,7 @@ function TemplatesTab() {
               className="px-4 py-2 bg-[#F3CC4D] rounded-lg text-sm font-medium hover:bg-yellow-400 transition">
               Save Template
             </button>
-            <button onClick={() => setShowForm(false)}
+            <button onClick={() => { setShowForm(false); setEditingTemplate(null); setTplName(""); setTplType(""); setTplContent(""); }}
               className="px-4 py-2 bg-[#F5F1E6] border border-[#E7E2D8] rounded-lg text-sm font-medium hover:bg-[#E7E2D8] transition">
               Cancel
             </button>
@@ -403,11 +594,11 @@ function TemplatesTab() {
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex gap-2">
-                    <button onClick={() => toast.success("Opening editor…")}
+                    <button onClick={() => { setEditingTemplate(t); setTplName(t.name); setTplType(t.type); setTplContent(`Template content for ${t.name}.\n\nDear {{employee_name}},\n\nThis is to certify that...`); setShowForm(true); }}
                       className="flex items-center gap-1 px-3 py-1.5 text-xs bg-[#F5F1E6] rounded-lg hover:bg-[#E7E2D8] transition">
                       <Edit size={12} /> Edit
                     </button>
-                    <button onClick={() => toast.success("Previewing template…")}
+                    <button onClick={() => setPreviewingTemplate(t)}
                       className="flex items-center gap-1 px-3 py-1.5 text-xs bg-[#F5F1E6] rounded-lg hover:bg-[#E7E2D8] transition">
                       <Eye size={12} /> Preview
                     </button>
@@ -418,6 +609,8 @@ function TemplatesTab() {
           </tbody>
         </table>
       </div>
+
+      {previewingTemplate && <TemplatePreviewModal template={previewingTemplate} onClose={() => setPreviewingTemplate(null)} />}
     </div>
   );
 }

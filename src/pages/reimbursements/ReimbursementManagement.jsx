@@ -22,6 +22,7 @@ const ReimbursementManagement = () => {
   const [staff, setStaff] = useState([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [filterStatus, setFilterStatus] = useState('all');
+  const [attachments, setAttachments] = useState([]);
   const [formData, setFormData] = useState({
     staffId: '',
     category: '',
@@ -122,6 +123,7 @@ const ReimbursementManagement = () => {
 
     toast.success('Reimbursement claim submitted');
     setShowAddModal(false);
+    setAttachments([]);
     setFormData({
       staffId: '',
       category: '',
@@ -492,16 +494,27 @@ const ReimbursementManagement = () => {
                   ></textarea>
                 </div>
 
-                <div className="md:col-span-2 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                  <div className="flex items-start gap-3">
-                    <Upload className="text-blue-600 mt-1" size={20} />
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-gray-900">Attach Supporting Documents</p>
-                      <p className="text-xs text-gray-600 mt-1">
-                        Upload bills, receipts, or invoices to support your claim (Feature coming soon)
-                      </p>
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-medium text-[#9C9C9C] mb-2">Attach Supporting Documents</label>
+                  <label className="flex items-center gap-2 px-4 py-3 border-2 border-dashed border-[#E7E2D8] rounded-xl cursor-pointer hover:border-[#F3CC4D] hover:bg-[#F5F1E6] transition">
+                    <Upload size={16} className="text-[#9C9C9C]" />
+                    <span className="text-sm text-[#9C9C9C]">{attachments.length > 0 ? `${attachments.length} file(s) attached` : 'Click to attach bills, receipts, invoices (PDF, JPG)'}</span>
+                    <input type="file" multiple accept=".pdf,.jpg,.jpeg,.png" className="hidden"
+                      onChange={e => setAttachments(prev => [...prev, ...Array.from(e.target.files).map(f => ({ name: f.name, size: (f.size/1024).toFixed(0)+'KB' }))])} />
+                  </label>
+                  {attachments.length > 0 && (
+                    <div className="mt-2 space-y-1">
+                      {attachments.map((f, i) => (
+                        <div key={i} className="flex items-center justify-between text-xs bg-[#F5F1E6] rounded-lg px-3 py-1.5">
+                          <span className="text-[#2B2B2B] font-medium">{f.name}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[#9C9C9C]">{f.size}</span>
+                            <button type="button" onClick={() => setAttachments(prev => prev.filter((_,j) => j !== i))} className="text-red-400 hover:text-red-600">×</button>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  </div>
+                  )}
                 </div>
               </div>
 

@@ -399,8 +399,8 @@ export default function TeamDashboard() {
   ];
 
   const quickActions = [
-    { label: 'Run Performance Check-in', icon: ClipboardList, action: () => toast('Performance check-in started', { icon: '📋' }) },
-    { label: 'Schedule 1:1',             icon: UserCheck,     action: () => toast('1:1 scheduler opening…', { icon: '📅' }) },
+    { label: 'Run Performance Check-in', icon: ClipboardList, action: () => navigate('/lnd') },
+    { label: 'Schedule 1:1',             icon: UserCheck,     action: () => navigate('/leave?tab=calendar') },
     { label: 'View Team Leave Calendar', icon: Palmtree,      action: () => navigate('/leave') },
     { label: 'Approve Pending Requests', icon: CheckCircle2,  action: () => navigate('/approvals') },
   ];

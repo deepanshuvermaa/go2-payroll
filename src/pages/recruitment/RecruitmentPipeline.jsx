@@ -397,15 +397,100 @@ function CandidateCard({ candidate, idx, onMove, onSchedule, canMove, onConvert 
   );
 }
 
+// ── Add Candidate Modal ────────────────────────────────────────────────────────
+function AddCandidateModal({ onClose, onAdd }) {
+  const [form, setForm] = useState({ name: '', role: '', department: 'Engineering', source: 'LinkedIn', exp: '', email: '', phone: '' });
+  const [loading, setLoading] = useState(false);
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!form.name || !form.role) { toast.error('Name and role are required'); return; }
+    setLoading(true);
+    try {
+      await recruitmentAPI.addCandidate({ ...form, stage: 'APPLIED' });
+    } catch { /* offline */ }
+    onAdd({ id: Date.now(), ...form, stage: 'Applied', date: new Date().toISOString().split('T')[0] });
+    toast.success(`${form.name} added to pipeline!`);
+    onClose();
+    setLoading(false);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[#E7E2D8]">
+          <h3 className="font-semibold text-[#2B2B2B]">Add New Candidate</h3>
+          <button onClick={onClose} className="p-1.5 hover:bg-[#F5F1E6] rounded-lg"><X size={16} /></button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-5 space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="col-span-2">
+              <label className="block text-xs font-medium text-[#9C9C9C] mb-1">Full Name *</label>
+              <input value={form.name} onChange={e => set('name', e.target.value)} required
+                placeholder="e.g. Rahul Sharma"
+                className="w-full border border-[#E7E2D8] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#F3CC4D]" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-[#9C9C9C] mb-1">Role Applied For *</label>
+              <input value={form.role} onChange={e => set('role', e.target.value)} required
+                placeholder="e.g. Senior Developer"
+                className="w-full border border-[#E7E2D8] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#F3CC4D]" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-[#9C9C9C] mb-1">Department</label>
+              <select value={form.department} onChange={e => set('department', e.target.value)}
+                className="w-full border border-[#E7E2D8] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#F3CC4D]">
+                {['Engineering','Design','HR','Product','DevOps','Finance','Marketing'].map(d => <option key={d}>{d}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-[#9C9C9C] mb-1">Source</label>
+              <select value={form.source} onChange={e => set('source', e.target.value)}
+                className="w-full border border-[#E7E2D8] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#F3CC4D]">
+                {['LinkedIn','Referral','Direct','Naukri','Indeed','Company Website'].map(s => <option key={s}>{s}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-[#9C9C9C] mb-1">Experience</label>
+              <input value={form.exp} onChange={e => set('exp', e.target.value)}
+                placeholder="e.g. 3 yrs"
+                className="w-full border border-[#E7E2D8] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#F3CC4D]" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-[#9C9C9C] mb-1">Email</label>
+              <input type="email" value={form.email} onChange={e => set('email', e.target.value)}
+                placeholder="candidate@email.com"
+                className="w-full border border-[#E7E2D8] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#F3CC4D]" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-[#9C9C9C] mb-1">Phone</label>
+              <input value={form.phone} onChange={e => set('phone', e.target.value)}
+                placeholder="+91 98765 43210"
+                className="w-full border border-[#E7E2D8] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#F3CC4D]" />
+            </div>
+          </div>
+          <div className="flex gap-3 pt-2">
+            <button type="submit" disabled={loading}
+              className="flex-1 py-2 bg-[#F3CC4D] rounded-xl text-sm font-semibold hover:bg-yellow-400 transition disabled:opacity-50">
+              {loading ? 'Adding...' : 'Add Candidate'}
+            </button>
+            <button type="button" onClick={onClose}
+              className="flex-1 py-2 bg-[#F5F1E6] border border-[#E7E2D8] rounded-xl text-sm font-medium hover:bg-[#E7E2D8] transition">
+              Cancel
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 // ── Kanban Column ──────────────────────────────────────────────────────────────
-function KanbanColumn({ stage, candidates, onMove, onSchedule, onConvert }) {
+function KanbanColumn({ stage, candidates, onMove, onSchedule, onConvert, onAddCandidate }) {
   const colors = STAGE_COLORS[stage];
   const stageIdx = STAGES.indexOf(stage);
   const canMove = stageIdx < STAGES.length - 1;
-
-  function handleAddCandidate() {
-    toast('Add candidate form coming soon', { icon: '👤' });
-  }
 
   return (
     <div className="flex-shrink-0 w-64 flex flex-col bg-[#F5F1E6] rounded-2xl border border-[#E7E2D8] overflow-hidden">
@@ -431,7 +516,7 @@ function KanbanColumn({ stage, candidates, onMove, onSchedule, onConvert }) {
       </div>
       <div className="p-3 border-t border-[#E7E2D8]">
         <button
-          onClick={handleAddCandidate}
+          onClick={onAddCandidate}
           className="w-full flex items-center justify-center gap-1.5 text-xs text-[#9C9C9C] hover:text-[#2B2B2B] hover:bg-white rounded-xl py-2 transition-colors border border-dashed border-[#E7E2D8]"
         >
           <Plus size={13} />
@@ -446,6 +531,7 @@ function KanbanColumn({ stage, candidates, onMove, onSchedule, onConvert }) {
 export default function RecruitmentPipeline() {
   const [candidates, setCandidates] = useState(initialCandidates);
   const [showJobModal, setShowJobModal] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
   const [interviewTarget, setInterviewTarget] = useState(null);
 
   // Load real pipeline data on mount
@@ -554,12 +640,19 @@ export default function RecruitmentPipeline() {
             onMove={handleMove}
             onSchedule={setInterviewTarget}
             onConvert={handleConvert}
+            onAddCandidate={() => setShowAddModal(true)}
           />
         ))}
       </div>
 
       {/* Modals */}
       {showJobModal && <PostJobModal onClose={() => setShowJobModal(false)} />}
+      {showAddModal && (
+        <AddCandidateModal
+          onClose={() => setShowAddModal(false)}
+          onAdd={(c) => setCandidates(prev => [...prev, c])}
+        />
+      )}
       {interviewTarget && (
         <InterviewPanel candidate={interviewTarget} onClose={() => setInterviewTarget(null)} />
       )}

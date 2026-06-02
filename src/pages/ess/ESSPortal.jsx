@@ -145,6 +145,65 @@ const LeaveRing = ({ label, used, total, color, size = 80 }) => {
   );
 };
 
+// ── Upload Document Modal ─────────────────────────────────────────────────────
+
+function UploadDocModal({ onClose, onUploaded }) {
+  const [form, setForm] = useState({ category: 'Identity', name: '', file: null });
+  const [loading, setLoading] = useState(false);
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!form.name || !form.file) { toast.error('Please fill all fields and select a file'); return; }
+    setLoading(true);
+    try { await essAPI.uploadDocument({ category: form.category, name: form.name }); } catch {}
+    onUploaded({ id: Date.now(), category: form.category, name: form.name, date: new Date().toISOString().split('T')[0], status: 'Pending' });
+    toast.success(`${form.name} uploaded successfully!`);
+    onClose();
+    setLoading(false);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[#E7E2D8]">
+          <h3 className="font-semibold text-[#2B2B2B]">Upload Document</h3>
+          <button onClick={onClose} className="p-1.5 hover:bg-[#F5F1E6] rounded-lg"><XCircle size={16} /></button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-5 space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-[#9C9C9C] mb-1">Category</label>
+            <select value={form.category} onChange={e => set('category', e.target.value)}
+              className="w-full border border-[#E7E2D8] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#F3CC4D]">
+              {['Identity', 'Employment', 'Tax', 'Education', 'Other'].map(c => <option key={c}>{c}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-[#9C9C9C] mb-1">Document Name</label>
+            <input value={form.name} onChange={e => set('name', e.target.value)} required
+              placeholder="e.g. PAN Card, Degree Certificate"
+              className="w-full border border-[#E7E2D8] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#F3CC4D]" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-[#9C9C9C] mb-1">File</label>
+            <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={e => set('file', e.target.files[0])}
+              className="w-full border border-[#E7E2D8] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#F3CC4D] file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:bg-[#F3CC4D] file:font-medium" />
+            <p className="text-[10px] text-[#9C9C9C] mt-1">Accepted: PDF, JPG, PNG (max 5MB)</p>
+          </div>
+          <div className="flex gap-3 pt-1">
+            <button type="submit" disabled={loading}
+              className="flex-1 py-2 bg-[#F3CC4D] rounded-xl text-sm font-semibold disabled:opacity-50">
+              {loading ? 'Uploading...' : 'Upload Document'}
+            </button>
+            <button type="button" onClick={onClose}
+              className="flex-1 py-2 bg-[#F5F1E6] border border-[#E7E2D8] rounded-xl text-sm font-medium">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 // ── main component ────────────────────────────────────────────────────────────
 
 const ESSPortal = () => {
@@ -193,6 +252,10 @@ const ESSPortal = () => {
 
   // Documents
   const [documents, setDocuments] = useState(MOCK_DOCUMENTS);
+  const [showUploadModal, setShowUploadModal] = useState(false);
+
+  // Org chart
+  const [showOrgChart, setShowOrgChart] = useState(false);
 
   // Requests
   const [activeRequest, setActiveRequest] = useState(null);
@@ -723,7 +786,7 @@ const ESSPortal = () => {
               <h2 className="text-lg font-bold text-[#2B2B2B]">Your Team</h2>
               <p className="text-xs text-[#9C9C9C]">{teamMembers.length} members</p>
             </div>
-            <button onClick={() => toast.success('Org chart coming soon!')} className="btn-primary flex items-center gap-2 text-xs px-3 py-2">
+            <button onClick={() => setShowOrgChart(true)} className="btn-primary flex items-center gap-2 text-xs px-3 py-2">
               <Building2 size={13} /> View Org Chart
             </button>
           </div>
@@ -771,7 +834,7 @@ const ESSPortal = () => {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-bold text-[#2B2B2B]">My Documents</h2>
-            <button onClick={() => toast.success('Upload feature coming soon!')} className="btn-primary flex items-center gap-2 text-xs px-3 py-2">
+            <button onClick={() => setShowUploadModal(true)} className="btn-primary flex items-center gap-2 text-xs px-3 py-2">
               <Upload size={13} /> Upload
             </button>
           </div>
@@ -785,7 +848,7 @@ const ESSPortal = () => {
                   <div className="text-center py-6">
                     <FolderOpen size={32} className="text-[#E7E2D8] mx-auto mb-2" />
                     <p className="text-xs text-[#9C9C9C]">No documents uploaded yet.</p>
-                    <button onClick={() => toast.success('Upload feature coming soon!')} className="mt-2 text-xs text-[#2B2B2B] underline font-medium">Upload now</button>
+                    <button onClick={() => setShowUploadModal(true)} className="mt-2 text-xs text-[#2B2B2B] underline font-medium">Upload now</button>
                   </div>
                 ) : (
                   <div className="space-y-2">
@@ -942,6 +1005,14 @@ const ESSPortal = () => {
         </div>
       )}
 
+      {/* ── UPLOAD DOCUMENT MODAL ─────────────────────────────── */}
+      {showUploadModal && (
+        <UploadDocModal
+          onClose={() => setShowUploadModal(false)}
+          onUploaded={(doc) => setDocuments(prev => [doc, ...prev])}
+        />
+      )}
+
       {/* ── TAB: ANNOUNCEMENTS ────────────────────────────────── */}
       {tab === 'announcements' && (
         <div className="space-y-4">
@@ -985,6 +1056,58 @@ const ESSPortal = () => {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── ORG CHART MODAL ──────────────────────────────────────── */}
+      {showOrgChart && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[80vh] overflow-y-auto">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-[#E7E2D8]">
+              <div>
+                <h3 className="font-semibold text-[#2B2B2B]">Team Org Chart</h3>
+                <p className="text-xs text-[#9C9C9C] mt-0.5">Your team structure</p>
+              </div>
+              <button onClick={() => setShowOrgChart(false)} className="p-1.5 hover:bg-[#F5F1E6] rounded-lg">
+                <XCircle size={16} className="text-[#9C9C9C]" />
+              </button>
+            </div>
+            <div className="p-5">
+              {/* You (root node) */}
+              <div className="flex flex-col items-center mb-6">
+                <div className="w-14 h-14 rounded-full flex items-center justify-center text-white text-lg font-bold mb-2"
+                  style={{ background: avatarColor(user?.ownerName || user?.name || 'Me') }}>
+                  {initials(user?.ownerName || user?.name || 'Me')}
+                </div>
+                <p className="text-sm font-semibold text-[#2B2B2B]">{user?.ownerName || user?.name || 'You'}</p>
+                <span className="text-[10px] px-2 py-0.5 mt-1 rounded-full bg-[#F3CC4D] text-[#2B2B2B] font-medium">You</span>
+              </div>
+              {/* Vertical connector */}
+              <div className="flex justify-center mb-2">
+                <div className="w-px h-6 bg-[#E7E2D8]" />
+              </div>
+              {/* Horizontal bar */}
+              <div className="relative flex justify-center mb-2">
+                <div className="absolute top-0 left-1/4 right-1/4 h-px bg-[#E7E2D8]" />
+              </div>
+              {/* Team members grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mt-2">
+                {teamMembers.map((m, i) => (
+                  <div key={i} className="flex flex-col items-center p-3 rounded-xl bg-[#F5F1E6] border border-[#E7E2D8] hover:border-[#F3CC4D] transition-colors">
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold mb-1.5"
+                      style={{ background: avatarColor(m.name) }}>
+                      {initials(m.name)}
+                    </div>
+                    <p className="text-xs font-semibold text-[#2B2B2B] text-center leading-tight">{m.name}</p>
+                    <p className="text-[10px] text-[#9C9C9C] text-center mt-0.5 leading-tight">{m.designation}</p>
+                    <span className={`mt-1.5 text-[10px] font-medium px-2 py-0.5 rounded-full ${STATUS_COLORS[m.status] || 'bg-gray-100 text-gray-600'}`}>
+                      {m.status}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       )}

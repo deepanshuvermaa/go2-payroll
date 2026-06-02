@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Send, Bot, AlertTriangle, TrendingDown, Calculator, Loader2, X, ChevronRight } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
@@ -306,6 +307,7 @@ function ChatTab() {
 /* ─── Anomalies Tab ─── */
 
 function AnomaliesTab() {
+  const navigate = useNavigate();
   const [analyzed, setAnalyzed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [anomalies, setAnomalies] = useState(INITIAL_ANOMALIES);
@@ -402,6 +404,7 @@ function AnomaliesTab() {
                   </div>
                   <div className="flex gap-2 mt-3">
                     <button
+                      onClick={() => navigate('/salary')}
                       className="text-xs px-3 py-1.5 rounded-lg font-medium"
                       style={{ background: '#2B2B2B', color: '#fff' }}
                     >
@@ -733,7 +736,10 @@ function TaxTab() {
       </div>
 
       <button
-        onClick={() => toast.success(`Tax preference set to ${betterRegime === 'old' ? 'Old' : 'New'} Regime`)}
+        onClick={() => {
+          localStorage.setItem('taxRegimePreference', betterRegime);
+          toast.success(`Tax preference saved: ${betterRegime === 'old' ? 'Old' : 'New'} Regime`);
+        }}
         className="w-full py-2.5 rounded-xl text-sm font-semibold transition-opacity hover:opacity-80"
         style={{ background: '#2B2B2B', color: '#F3CC4D' }}
       >

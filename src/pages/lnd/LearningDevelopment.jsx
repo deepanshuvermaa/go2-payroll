@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Award, BookOpen, Calendar, ChevronRight, CheckCircle, Clock, Download, Plus, Star, TrendingUp, Upload, User, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import useAuthStore from '../../store/authStore';
-import { lndAPI } from '../../services/api';
+import { lndAPI, essAPI } from '../../services/api';
 
 const TABS = [
   { id: 'calendar', label: 'Training Calendar', icon: Calendar },
@@ -222,11 +222,16 @@ function AssessmentsTab({ assessments: propAssessments, setAssessments }) {
     if (propAssessments) setLocalAssessments(propAssessments);
   }, [propAssessments]);
 
+  const startFirst = () => {
+    const first = assessments.find(a => a.status === 'not_started') || assessments[0];
+    if (first) setActiveQuiz(first);
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <p className="text-sm text-[#9C9C9C]">Test your knowledge and track skill growth</p>
-        <button className="btn-primary flex items-center gap-2" onClick={() => toast('Choose an assessment to start.')}>
+        <button className="btn-primary flex items-center gap-2" onClick={startFirst}>
           <Plus size={14} /> Start Assessment
         </button>
       </div>
@@ -368,7 +373,16 @@ function CertificatesTab({ certificates: propCerts, setCertificates }) {
                 </div>
               </div>
             </div>
-            <button className="mt-3 flex items-center gap-1.5 text-xs text-[#9C9C9C] hover:text-[#2B2B2B]" onClick={() => toast('Downloading certificate...')}>
+            <button className="mt-3 flex items-center gap-1.5 text-xs text-[#9C9C9C] hover:text-[#2B2B2B]" onClick={() => {
+              const html = `<!DOCTYPE html><html><head><title>${c.name}</title><style>body{font-family:Arial,sans-serif;padding:60px;max-width:700px;margin:auto;border:2px solid #2B2B2B;}h1{color:#2B2B2B;font-size:28px;text-align:center;margin-bottom:4px;}h2{color:#B8960A;text-align:center;font-size:16px;margin-top:0;}table{width:100%;border-collapse:collapse;margin-top:30px;}td{padding:10px 14px;border:1px solid #E7E2D8;font-size:14px;}.label{font-weight:bold;background:#F5F1E6;width:40%;}.footer{margin-top:50px;text-align:center;font-size:12px;color:#9C9C9C;}</style></head><body><h1>Certificate of Achievement</h1><h2>Go2-Payroll HR System</h2><hr/><table><tr><td class="label">Certificate Name</td><td>${c.name}</td></tr><tr><td class="label">Issued By</td><td>${c.issuer}</td></tr><tr><td class="label">Issue Date</td><td>${c.issueDate}</td></tr><tr><td class="label">Expiry Date</td><td>${c.expiryDate}</td></tr><tr><td class="label">Status</td><td>${c.status}</td></tr></table><div class="footer">This certificate has been verified by Go2-Payroll HR System.</div></body></html>`;
+              const blob = new Blob([html], { type: 'text/html' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url; a.download = `${c.name.replace(/\s+/g, '_')}_Certificate.html`;
+              document.body.appendChild(a); a.click(); document.body.removeChild(a);
+              URL.revokeObjectURL(url);
+              toast.success('Certificate downloaded');
+            }}>
               <Download size={12} /> Download PDF
             </button>
           </div>
@@ -443,7 +457,12 @@ function CareerTab() {
         <p className="text-xs text-[#9C9C9C] mt-2">Black marker = required level</p>
       </div>
 
-      <button className="btn-primary w-full flex items-center justify-center gap-2" onClick={() => toast.success('HR has been notified. They will reach out within 2 business days.')}>
+      <button className="btn-primary w-full flex items-center justify-center gap-2" onClick={async () => {
+        try {
+          await essAPI.raiseRequest({ type: 'CAREER_GROWTH', description: 'Employee requested a career growth discussion with HR.' });
+        } catch {}
+        toast.success('HR has been notified. They will reach out within 2 business days.');
+      }}>
         <User size={14} /> Talk to HR about Growth
       </button>
     </div>

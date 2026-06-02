@@ -480,14 +480,13 @@ const AttendanceRegularization = () => {
             <div className="flex items-center justify-between">
               <div>
                 <label className="label">Require Proof</label>
-                <p className="text-sm text-gray-600">Require document/proof attachment (Future)</p>
+                <p className="text-sm text-gray-600">Require document/proof attachment with each request</p>
               </div>
               <input
                 type="checkbox"
                 checked={settings.requireProof}
                 onChange={(e) => setSettings({ ...settings, requireProof: e.target.checked })}
                 className="w-5 h-5"
-                disabled
               />
             </div>
 

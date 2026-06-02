@@ -20,8 +20,13 @@ const MOCK_HISTORY = [
   { id: 5, job: 'Payroll Initiated', ran: '2026-05-28 08:00', status: 'success', affected: 47, duration: '5.1s' },
 ];
 
+const NOTIF_CHANNELS = ['Email Notifications', 'Slack Integration', 'WhatsApp Alerts', 'In-App Notifications'];
+
 const PayrollAutomation = () => {
   const [enabled, setEnabled] = useState({ payroll: true, accrual: true, birthday: true, probation: true, docexpiry: true, confirmation: true });
+  const [notifEnabled, setNotifEnabled] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('automationNotifSettings') || 'null') || { 'Email Notifications': true, 'Slack Integration': false, 'WhatsApp Alerts': false, 'In-App Notifications': true }; } catch { return { 'Email Notifications': true, 'Slack Integration': false, 'WhatsApp Alerts': false, 'In-App Notifications': true }; }
+  });
   const [running, setRunning] = useState({});
   const [history, setHistory] = useState(MOCK_HISTORY);
   const [tab, setTab] = useState('jobs');
@@ -33,9 +38,9 @@ const PayrollAutomation = () => {
       await api.post(job.endpoint);
       toast.success(`${job.label} triggered successfully!`);
       setHistory(p => [{ id: Date.now(), job: job.label, ran: new Date().toLocaleString(), status: 'success', affected: Math.floor(Math.random()*50)+1, duration: `${(Math.random()*5+0.5).toFixed(1)}s` }, ...p.slice(0,9)]);
-    } catch {
-      toast.success(`${job.label} triggered (backend processing)`);
-      setHistory(p => [{ id: Date.now(), job: job.label, ran: new Date().toLocaleString(), status: 'success', affected: Math.floor(Math.random()*50)+1, duration: `${(Math.random()*5+0.5).toFixed(1)}s` }, ...p.slice(0,9)]);
+    } catch (err) {
+      toast.error(`${job.label} failed: ${err?.response?.data?.message || 'Server error'}`);
+      setHistory(p => [{ id: Date.now(), job: job.label, ran: new Date().toLocaleString(), status: 'error', affected: 0, duration: '-' }, ...p.slice(0,9)]);
     } finally {
       setRunning(p => ({ ...p, [job.id]: false }));
     }
@@ -112,13 +117,13 @@ const PayrollAutomation = () => {
           <div className="divide-y divide-[#F5F1E6]">
             {history.map(h => (
               <div key={h.id} className="flex items-center gap-4 px-5 py-3">
-                {h.status === 'success' ? <CheckCircle size={16} className="text-emerald-600 flex-shrink-0" /> : <AlertCircle size={16} className="text-amber-500 flex-shrink-0" />}
+                {h.status === 'success' ? <CheckCircle size={16} className="text-emerald-600 flex-shrink-0" /> : h.status === 'error' ? <AlertCircle size={16} className="text-red-500 flex-shrink-0" /> : <AlertCircle size={16} className="text-amber-500 flex-shrink-0" />}
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-[#2B2B2B]">{h.job}</p>
                   <p className="text-xs text-[#9C9C9C]">{h.ran} · {h.duration}</p>
                 </div>
-                <span className="text-xs text-[#9C9C9C]">{h.affected} affected</span>
-                <span className={`text-xs px-2 py-1 rounded-full font-medium ${h.status === 'success' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                <span className="text-xs text-[#9C9C9C]">{h.affected > 0 ? `${h.affected} affected` : ''}</span>
+                <span className={`text-xs px-2 py-1 rounded-full font-medium ${h.status === 'success' ? 'bg-emerald-100 text-emerald-700' : h.status === 'error' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>
                   {h.status}
                 </span>
               </div>
@@ -136,7 +141,12 @@ const PayrollAutomation = () => {
                 <p className="text-sm font-medium text-[#2B2B2B]">{label}</p>
                 <p className="text-xs text-[#9C9C9C] mt-0.5">{desc}</p>
               </div>
-              <button onClick={() => toast.success('Settings saved')}><ToggleRight size={22} className="text-emerald-500" /></button>
+              <button onClick={() => {
+                const next = { ...notifEnabled, [label]: !notifEnabled[label] };
+                setNotifEnabled(next);
+                localStorage.setItem('automationNotifSettings', JSON.stringify(next));
+                toast.success(`${label} ${next[label] ? 'enabled' : 'disabled'}`);
+              }}>{notifEnabled[label] ? <ToggleRight size={22} className="text-emerald-500" /> : <ToggleLeft size={22} className="text-[#9C9C9C]" />}</button>
             </div>
           ))}
         </div>

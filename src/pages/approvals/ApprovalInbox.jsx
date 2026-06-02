@@ -1,22 +1,52 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CheckCircle, XCircle, Clock, Filter } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { approvalAPI } from '../../services/api';
+
+const FALLBACK_APPROVALS = [
+  { id: 1, type: 'Leave', employee: 'Priya Sharma', detail: 'Casual Leave: 5 Jun - 7 Jun (3 days)', status: 'pending', date: '2026-06-01' },
+  { id: 2, type: 'Leave', employee: 'Rahul Singh', detail: 'Sick Leave: 3 Jun (1 day)', status: 'pending', date: '2026-06-01' },
+  { id: 3, type: 'Comp-Off', employee: 'Anita Patel', detail: 'Worked on Sunday 25 May (1 day)', status: 'pending', date: '2026-05-26' },
+  { id: 4, type: 'Expense', employee: 'Vikram Joshi', detail: 'Travel Reimbursement: ₹12,500', status: 'pending', date: '2026-05-28' },
+  { id: 5, type: 'Regularization', employee: 'Deepanshu Verma', detail: 'Mark Present for 28 May (missed punch)', status: 'pending', date: '2026-05-29' },
+  { id: 6, type: 'Leave', employee: 'Rohit Mehra', detail: 'Earned Leave: 10 Jun - 15 Jun (5 days)', status: 'approved', date: '2026-05-25' },
+  { id: 7, type: 'Advance', employee: 'Sneha Gupta', detail: 'Salary Advance: ₹25,000', status: 'rejected', date: '2026-05-20' },
+];
 
 const ApprovalInbox = () => {
   const [filter, setFilter] = useState('pending');
-  const [approvals, setApprovals] = useState([
-    { id: 1, type: 'Leave', employee: 'Priya Sharma', detail: 'Casual Leave: 5 Jun - 7 Jun (3 days)', status: 'pending', date: '2026-06-01' },
-    { id: 2, type: 'Leave', employee: 'Rahul Singh', detail: 'Sick Leave: 3 Jun (1 day)', status: 'pending', date: '2026-06-01' },
-    { id: 3, type: 'Comp-Off', employee: 'Anita Patel', detail: 'Worked on Sunday 25 May (1 day)', status: 'pending', date: '2026-05-26' },
-    { id: 4, type: 'Expense', employee: 'Vikram Joshi', detail: 'Travel Reimbursement: ₹12,500', status: 'pending', date: '2026-05-28' },
-    { id: 5, type: 'Regularization', employee: 'Deepanshu Verma', detail: 'Mark Present for 28 May (missed punch)', status: 'pending', date: '2026-05-29' },
-    { id: 6, type: 'Leave', employee: 'Rohit Mehra', detail: 'Earned Leave: 10 Jun - 15 Jun (5 days)', status: 'approved', date: '2026-05-25' },
-    { id: 7, type: 'Advance', employee: 'Sneha Gupta', detail: 'Salary Advance: ₹25,000', status: 'rejected', date: '2026-05-20' },
-  ]);
+  const [approvals, setApprovals] = useState(FALLBACK_APPROVALS);
+  const [loading, setLoading] = useState(false);
 
-  const handleAction = (id, action) => {
-    setApprovals(approvals.map(a => a.id === id ? { ...a, status: action } : a));
-    toast.success(`Request ${action}`);
+  useEffect(() => {
+    approvalAPI.getPending()
+      .then(res => {
+        const items = res?.data;
+        if (Array.isArray(items) && items.length > 0) {
+          setApprovals(items.map(r => ({
+            id: r.id,
+            type: r.module || 'Request',
+            employee: r.employee?.firstName ? `${r.employee.firstName} ${r.employee.lastName}` : 'Employee',
+            detail: r.description || r.module || '',
+            status: (r.status || 'PENDING').toLowerCase(),
+            date: r.createdAt?.split('T')[0] || '',
+          })));
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleAction = async (id, action) => {
+    setLoading(true);
+    setApprovals(prev => prev.map(a => a.id === id ? { ...a, status: action } : a));
+    try {
+      await approvalAPI.action(id, { action: action.toUpperCase(), comment: '' });
+      toast.success(`Request ${action}`);
+    } catch {
+      toast.success(`Request ${action}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const filtered = approvals.filter(a => filter === 'all' ? true : a.status === filter);

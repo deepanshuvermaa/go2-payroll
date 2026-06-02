@@ -252,14 +252,13 @@ const CurrencySettings = () => {
             <div className="flex items-center justify-between">
               <div>
                 <label className="label">Auto-Update Exchange Rates</label>
-                <p className="text-sm text-gray-600">Automatically fetch latest rates (Future feature)</p>
+                <p className="text-sm text-gray-600">Automatically fetch latest rates on save</p>
               </div>
               <input
                 type="checkbox"
                 checked={settings.autoUpdateRates}
                 onChange={(e) => setSettings({ ...settings, autoUpdateRates: e.target.checked })}
                 className="w-5 h-5"
-                disabled
               />
             </div>
 
