@@ -26,15 +26,24 @@ const UserManagement = () => {
 
   useEffect(() => { loadUsers(); }, []);
 
-  const loadUsers = () => {
-    const stored = payrollDataStore.getData('go2_users') || [];
-    if (stored.length === 0) {
-      const defaultUsers = [
-        { id: '1', name: 'Admin', email: 'admin@go2payroll.com', role: 'admin', status: 'active', createdAt: new Date().toISOString() },
-      ];
-      payrollDataStore.setData('go2_users', defaultUsers);
-      setUsers(defaultUsers);
-    } else {
+  const loadUsers = async () => {
+    try {
+      // Fetch real employees from backend
+      const { employeeAPI } = await import('../../services/api');
+      const res = await employeeAPI.list({ limit: 200 });
+      const employees = res.data || [];
+      const mapped = employees.map(e => ({
+        id: e.id,
+        name: `${e.firstName} ${e.lastName}`,
+        email: e.email,
+        role: e.userId ? 'admin' : 'employee',
+        status: e.status?.toLowerCase() === 'active' ? 'active' : 'inactive',
+        createdAt: e.createdAt,
+      }));
+      setUsers(mapped);
+    } catch {
+      // Fallback to localStorage
+      const stored = payrollDataStore.getData('go2_users') || [];
       setUsers(stored);
     }
   };
